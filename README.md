@@ -8,6 +8,11 @@
 
 [Features](#features) · [Install](#install) · [Privacy](#privacy) · [How it works](#how-it-works) · [中文说明](#中文说明) · [日本語](#日本語)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-dark.jpg">
+  <img src="docs/screenshots/dashboard.jpg" width="860">
+</picture>
+
 </div>
 
 ## Why
@@ -37,6 +42,8 @@ Japan Work Secretary keeps the schedule in your vault, works out the pay the way
 - **28 hours in any 7 days.** The dashboard shows the busiest 7-day window around the selected day and how many hours are left.
 - **Long school vacations.** Enter the vacation dates from your school; on those days the plugin checks 8 hours per day instead.
 - **Income alert lines.** Set your own monthly or yearly amounts and see how close you are. The plugin does not decide tax for you; thresholds change from year to year, so you enter the numbers that apply to you.
+
+<img src="docs/screenshots/settings-limits.jpg" width="860">
 
 ### Calendar
 
