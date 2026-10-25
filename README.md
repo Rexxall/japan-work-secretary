@@ -93,6 +93,8 @@ npm run build     # writes main.js
 npm test          # 23 tests: 28-hour windows, vacations, wages, calendar sync planning
 ```
 
+`styles.css` is generated. Edit `styles/plugin.css` (or the shared `styles/kit.css`, the same in all of my plugins) and run `npm run styles`.
+
 ## Known limits
 
 - Rules about hours and income are for reference only. Check your school and the official pages linked in the dashboard (ⓘ).
@@ -101,6 +103,15 @@ npm test          # 23 tests: 28-hour windows, vacations, wages, calendar sync p
 - The interface mixes English and Chinese.
 
 ## Changelog
+
+**1.3.0**
+
+- Dashboard redesigned: four numbers at the top (hours, estimated wage, busiest 7 days, income), and the busiest 7 days are marked on the calendar. Shift chips show the store and the time.
+- The 7-day card shows the hours of each day in that window.
+- Adding a shift shows what it does to the busiest 7 days before you save; above 28 hours the button reads "Save anyway".
+- Settings show the default wage bands as one strip across the day.
+- Optional **Paper & ink style** in settings. Off by default, so the dashboard follows your theme.
+- Styles rewritten from scratch on a small shared style kit; the dashboard no longer uses inline styles.
 
 **1.2.0**
 
