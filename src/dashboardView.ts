@@ -1492,9 +1492,9 @@ export class DashboardView extends ItemView {
         top.createEl('span', { text: icon });
 
         const barContainer = item.createDiv({ cls: 'tax-bar-container' });
-        const percent = Math.min(100, Math.round((current / wall) * 100));
+        const percent = Math.round((current / wall) * 100);
         const bar = barContainer.createDiv({ cls: 'tax-bar' });
-        bar.style.width = `${percent}%`;
+        bar.style.width = `${Math.min(100, percent)}%`;
 
         const desc = item.createEl('p', { 
             text: `${current.toLocaleString()} / ${wall.toLocaleString()} JPY (${percent}%)`,
