@@ -1,0 +1,1089 @@
+/* Japan Work Secretary Plugin Styles - Premium Glassmorphism */
+
+:root {
+    --glass-bg: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --accent-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+}
+
+.theme-dark {
+    --glass-bg: rgba(0, 0, 0, 0.2);
+    --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+.japan-work-dashboard {
+    padding: 20px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--background-primary);
+    min-height: 100%;
+    color-scheme: dark light;
+    overflow-x: hidden;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.dashboard-title {
+    margin: 0 !important;
+    font-size: 1.4rem !important;
+    font-weight: 800;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px; /* 极致紧缩间距 */
+    flex-wrap: wrap;
+}
+
+.view-toggle button {
+    padding: 6px 10px;
+}
+
+/* Layout Wrapper */
+.dashboard-content-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+/* Top Stats Bar: Wage & Peak side-by-side */
+.top-stats-bar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.income-analytics-card {
+    grid-column: 1 / -1;
+    width: 100%;
+    justify-self: stretch;
+    box-sizing: border-box;
+    min-height: 180px;
+    display: grid;
+    grid-template-columns: minmax(165px, 0.55fr) minmax(0, 1.45fr);
+    grid-template-rows: auto minmax(88px, 1fr) auto;
+    align-items: stretch;
+    gap: 10px 18px;
+    overflow: visible;
+}
+
+.income-analytics-card > h3 {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+}
+
+.income-comparison {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-content: center;
+    gap: 8px;
+    justify-self: start;
+    margin-bottom: 0;
+    padding-right: 0;
+    min-width: 0;
+    max-width: 210px;
+}
+
+.income-period-label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+
+.income-current-value {
+    font-size: 1.28rem;
+    font-weight: 800;
+}
+
+.income-delta {
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.income-delta span {
+    display: block;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.income-delta.positive {
+    color: var(--text-success);
+}
+
+.income-delta.negative {
+    color: var(--text-error);
+}
+
+.income-trend-chart {
+    width: min(100%, 460px);
+    justify-self: center;
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 88px;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    align-items: flex-end;
+    gap: 5px;
+    padding: 8px 12px 2px;
+    border-left: 1px dashed var(--glass-border);
+    border-right: 1px dashed var(--glass-border);
+    border-top: none;
+    border-bottom: none;
+    min-width: 0;
+}
+
+.income-trend-bar-wrap {
+    height: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+}
+
+.income-trend-bar {
+    width: 100%;
+    max-width: 32px;
+    min-height: 4px;
+    border-radius: 4px 4px 2px 2px;
+    background: linear-gradient(180deg, #2563eb 0%, #0d9488 100%);
+}
+
+.income-trend-label {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.store-income-section {
+    display: grid;
+    grid-column: 1 / -1;
+    width: min(100%, 720px);
+    justify-self: center;
+    box-sizing: border-box;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    margin-top: 2px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.store-share-bar {
+    display: flex;
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    background: var(--background-modifier-border);
+}
+
+.store-share-segment {
+    min-width: 3px;
+    height: 100%;
+}
+
+.store-pie-legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 6px 12px;
+    min-width: 0;
+}
+
+.store-pie-row {
+    display: grid;
+    grid-template-columns: 9px minmax(0, 1fr) auto;
+    gap: 6px;
+    align-items: center;
+    font-size: 0.7rem;
+}
+
+.store-pie-swatch {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+}
+
+.store-pie-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.store-pie-value {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.store-empty-state {
+    grid-column: 1 / -1;
+    font-size: 0.75rem;
+}
+
+/* 第三个卡片（Weekly Hours）移到底部，独占下一行，长条状 */
+.bottom-stats-bar .chart-card {
+    width: 100%;
+    padding: 16px;
+}
+
+/* 提高第三个卡片内的图表高度，拉挺 */
+.bottom-stats-bar .chart-card .weekly-chart-container {
+    height: 90px !important; /* 拉长 */
+}
+
+/* 点石成金：优化卡片2内部文字密集感 */
+.limit-tracker-container > div {
+    display: flex;
+    flex-direction: column;
+    gap: 8px; /* 文字间距增加 */
+    justify-content: center;
+}
+
+.limit-tracker-container > div h2,
+.limit-tracker-container > div p {
+    margin: 0 !important;
+}
+
+/* 窄屏自适应：如果极其狭窄，退回垂直通栏 */
+@media (max-width: 480px) {
+    .top-stats-bar {
+        grid-template-columns: 1fr;
+    }
+    .income-analytics-card {
+        grid-template-columns: 1fr;
+        min-height: 0;
+    }
+    .income-analytics-card > h3,
+    .income-comparison,
+    .income-trend-chart,
+    .store-income-section {
+        grid-column: 1;
+    }
+    .income-trend-chart {
+        height: 90px;
+        border-left: none;
+        border-right: none;
+        border-top: 1px dashed var(--glass-border);
+        border-bottom: 1px dashed var(--glass-border);
+    }
+    .top-stats-bar .dashboard-card:nth-child(3) {
+        grid-column: span 1;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
+
+@media (max-width: 900px) {
+    .income-analytics-card {
+        grid-template-columns: 1fr;
+    }
+
+    .income-analytics-card > h3,
+    .income-comparison,
+    .income-trend-chart,
+    .store-income-section {
+        grid-column: 1;
+    }
+
+    .income-trend-chart {
+        justify-self: center;
+        width: min(100%, 360px);
+        border-left: none;
+        border-right: none;
+        border-top: 1px dashed var(--glass-border);
+        border-bottom: 1px dashed var(--glass-border);
+    }
+}
+
+.dashboard-section h3 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-normal);
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.dashboard-card {
+    background: linear-gradient(145deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.theme-dark .dashboard-card {
+    background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+}
+
+.dashboard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px 0 rgba(31, 38, 135, 0.2);
+}
+
+.dashboard-card h3 {
+    margin-top: 0;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.dashboard-card h2 {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+
+
+/* Progress Circle Optimization */
+.limit-tracker-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.progress-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: conic-gradient(var(--interactive-accent) calc(var(--progress-percent) * 1%), var(--background-modifier-border) 0);
+    flex-shrink: 0;
+}
+
+.progress-circle::after {
+    content: "";
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    background: var(--background-primary);
+    border-radius: 50%;
+}
+
+.progress-circle span {
+    position: relative;
+    z-index: 1;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+/* Calendar Section */
+.calendar-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    opacity: 0.9;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--background-secondary);
+}
+
+.calendar-day-header {
+    background: var(--background-secondary-alt);
+    padding: 8px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.75rem;
+    border-bottom: 1px solid var(--glass-border);
+    color: var(--text-muted);
+}
+
+.calendar-day {
+    min-height: 80px;
+    padding: 6px;
+    border-right: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--glass-border);
+    background: var(--background-primary);
+    transition: background 0.2s ease;
+    cursor: pointer;
+}
+
+.calendar-day:nth-child(7n) {
+    border-right: none;
+}
+
+.calendar-day:hover {
+    background: var(--background-modifier-hover);
+}
+
+.calendar-day.is-holiday, 
+.calendar-day.sunday { /* Sunday */
+    background: rgba(255, 75, 43, 0.03);
+}
+
+.calendar-day.sunday .calendar-day-number,
+.calendar-day.is-holiday .calendar-day-number {
+    color: #ff4b2b !important;
+    font-weight: 800;
+}
+
+.calendar-day.saturday .calendar-day-number { /* Saturday */
+    color: #2b82ff !important;
+    font-weight: 800;
+}
+
+
+
+.calendar-day.selected-date {
+    background: rgba(var(--interactive-accent-rgb), 0.12);
+    box-shadow: inset 0 0 0 1px var(--interactive-accent);
+}
+
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+    .japan-work-dashboard {
+        padding: 12px;
+    }
+
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+
+    .calendar-day {
+        min-height: 60px;
+        padding: 4px;
+    }
+
+    .calendar-day-header {
+        padding: 4px;
+        font-size: 0.65rem;
+    }
+
+    .shift-tag {
+        font-size: 0.6rem;
+        padding: 2px 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .dashboard-card h2 {
+        font-size: 1.5rem;
+    }
+}
+
+/* Navigation & Toggles */
+.nav-group, .view-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--background-secondary);
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+}
+
+.sync-mode-group {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: var(--background-secondary);
+}
+
+.sync-mode-group .view-toggle-btn {
+    border-radius: 6px;
+}
+
+.sync-primary-btn {
+    color: var(--text-on-accent);
+    background: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+    font-weight: 700;
+}
+
+.sync-mode-group .view-toggle-btn:disabled {
+    cursor: progress;
+    opacity: 0.55;
+}
+
+.nav-btn {
+    background: var(--background-primary);
+    border: 1px solid var(--glass-border);
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.date-display {
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0 8px;
+    min-width: 80px;
+    text-align: center;
+}
+
+.view-toggle-btn {
+    background: var(--background-secondary);
+    border: 1px solid var(--glass-border);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+/* Tag Styles */
+.shift-tag {
+    font-size: 0.7rem;
+    padding: 3px 6px;
+    border-radius: 4px;
+    margin-bottom: 3px;
+    background: var(--accent-gradient);
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.shift-tag.recurring {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.shift-tag.paid-leave {
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+}
+
+/* Forms & Management */
+.manual-input-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.form-group label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.form-group input, .form-group select {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--glass-border);
+    background: var(--background-secondary);
+    font-size: 0.85rem;
+}
+
+.recurring-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    margin-bottom: 8px;
+    border-radius: 10px;
+    background: var(--background-secondary);
+    border: 1px solid var(--glass-border);
+    font-size: 0.85rem;
+}
+
+.weekly-pattern-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.pattern-row {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    background: var(--background-secondary-alt);
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+}
+
+.day-check-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.pattern-times {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.batch-controls {
+    padding: 12px;
+    background: rgba(var(--interactive-accent-rgb), 0.03);
+    border-radius: 10px;
+    border: 1px dashed var(--interactive-accent);
+}
+
+.template-seed-btn {
+    width: 100%;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.template-seed-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.batch-date-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.template-action-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.template-list {
+    margin-top: 16px;
+}
+
+.template-list h4 {
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.template-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    align-items: stretch;
+    padding: 10px;
+    margin-bottom: 8px;
+    border-radius: 10px;
+    background: var(--background-secondary);
+    border: 1px solid var(--glass-border);
+}
+
+.template-item-info {
+    min-width: 0;
+}
+
+.template-item-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.template-item-summary {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.template-item-actions {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+}
+
+.template-item-actions button {
+    font-size: 0.7rem;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid var(--glass-border);
+    background: var(--background-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.template-delete-btn {
+    color: var(--text-error);
+    min-width: 26px;
+}
+
+.submit-btn {
+    padding: 10px;
+    border-radius: 8px;
+    background: var(--accent-gradient);
+    color: white;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.submit-btn:hover {
+    opacity: 0.9;
+}
+
+.recurring-item button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    opacity: 0.6;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.recurring-item button:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.recurring-item .mod-cta {
+    background: var(--interactive-accent);
+    color: white;
+    border-radius: 4px;
+    opacity: 1;
+}
+
+/* Tax & Legal Lists */
+.tax-alert-list, .legal-stats-list {
+    gap: 10px;
+}
+
+.tax-item, .legal-item {
+    padding: 12px;
+    border-radius: 10px;
+    background: rgba(var(--background-modifier-border-rgb), 0.1);
+    border-left: 4px solid #28a745;
+}
+
+.tax-item.near { border-left-color: #ffc107; background: rgba(255, 193, 7, 0.05); }
+.tax-item.danger { border-left-color: #dc3545; background: rgba(220, 53, 69, 0.05); }
+
+.tax-bar-container {
+    height: 8px;
+    background: var(--background-modifier-border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 8px 0;
+}
+
+.tax-bar {
+    height: 100%;
+    background: var(--accent-gradient);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.tax-item.near .tax-bar { background: #ffc107; }
+.tax-item.danger .tax-bar { background: #dc3545; }
+
+/* Wage Typography */
+.rmb-estimation {
+    font-size: 0.8rem;
+    margin-top: 2px;
+}
+
+.tax-desc {
+    font-size: 0.7rem;
+}
+
+/* ─── Share Schedule Modal ─────────────────────────────────── */
+.shift-share-modal .modal-title {
+    margin: 0 0 18px 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.share-range-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.share-preview {
+    width: 100%;
+    min-height: 260px;
+    resize: vertical;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-family: var(--font-monospace);
+    font-size: 0.82rem;
+    line-height: 1.55;
+}
+
+.share-action-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+/* ─── Edit Shift Modal ─────────────────────────────────── */
+.edit-shift-modal .modal-title {
+    margin: 0 0 20px 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.edit-shift-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.edit-shift-time-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.edit-shift-preview {
+    padding: 10px 14px;
+    background: rgba(var(--interactive-accent-rgb), 0.08);
+    border: 1px solid var(--interactive-accent);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--interactive-accent);
+}
+
+.edit-shift-btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.edit-shift-btn-row .submit-btn {
+    flex: 1;
+}
+
+.cancel-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: var(--background-secondary);
+    cursor: pointer;
+    font-weight: 600;
+    transition: opacity 0.2s;
+}
+
+.cancel-btn:hover {
+    opacity: 0.8;
+}
+
+/* Store colors: one per configured store, cycling */
+.shift-tag.store-0 { background: linear-gradient(135deg, #0d9488 0%, #064e3b 100%) !important; }
+.shift-tag.store-1 { background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%) !important; }
+.shift-tag.store-2 { background: linear-gradient(135deg, #db2777 0%, #831843 100%) !important; }
+.shift-tag.store-3 { background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%) !important; }
+.shift-tag.store-4 { background: linear-gradient(135deg, #ea580c 0%, #7c2d12 100%) !important; }
+
+/* Priority handles for states over store colors */
+.shift-tag.recurring {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+}
+
+.shift-tag.paid-leave {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+}
+
+/* =========================================================================
+   Mobile & Tablet Responsive Adjustments (Obsidian .is-mobile ecosystem)
+   ========================================================================= */
+
+/* JS Grid Fallbacks */
+.week-grid-layout {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+}
+
+.time-input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.edit-recurring-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
+.edit-recurring-row.mt-4 {
+    margin-top: 4px;
+}
+
+/* Tablet (~<1024px) & Phone adaptations */
+.is-mobile .japan-work-dashboard {
+    padding: 12px;
+}
+
+.is-mobile .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.is-mobile .header-controls {
+    width: 100%;
+    justify-content: space-between;
+}
+
+.is-mobile .sync-mode-group {
+    flex: 1 1 100%;
+}
+
+.is-mobile .sync-mode-group .view-toggle-btn {
+    flex: 1;
+}
+
+/* Specific Phone adaptations */
+.is-phone .japan-work-dashboard {
+    padding: 8px;
+}
+
+.is-phone .calendar-day {
+    min-height: 50px;
+    padding: 2px;
+}
+
+.is-phone .calendar-day-header {
+    font-size: 0.65rem;
+    padding: 4px 0;
+}
+
+.is-phone .shift-tag {
+    font-size: 0.65rem;
+    padding: 2px 4px;
+    margin-bottom: 2px;
+    border-radius: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Stack statistics cards on phone */
+.is-phone .top-stats-bar {
+    grid-template-columns: 1fr;
+}
+
+/* Stack management grids on phone */
+.is-phone .mgmt-grid {
+    grid-template-columns: 1fr;
+}
+
+/* Forms to 1 column on phones */
+.is-phone .time-input-grid,
+.is-phone .edit-recurring-row,
+.is-phone .edit-shift-time-row,
+.is-phone .batch-date-row,
+.is-phone .template-action-row,
+.is-phone .share-range-row,
+.is-phone .share-action-row {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+}
+
+.is-phone .pattern-row {
+    grid-template-columns: 60px 1fr;
+}
+
+.is-phone .template-item {
+    grid-template-columns: 1fr;
+}
+
+.is-phone .template-item-actions {
+    grid-template-columns: 1fr 1fr;
+}
+
+.is-phone .template-item-actions button {
+    min-width: 0;
+}
+
+/* Buttons and Inputs Interaction targets */
+.is-mobile .nav-btn,
+.is-mobile .view-toggle-btn,
+.is-mobile .submit-btn,
+.is-mobile input,
+.is-mobile select {
+    min-height: 38px;
+}
+
+/* Cancel hover scaling */
+.is-mobile .dashboard-card:hover {
+    transform: none;
+    box-shadow: var(--card-shadow);
+}
+.is-mobile .calendar-day:hover {
+    background: inherit;
+}
+
+/* Policy modal */
+.jws-policy-modal .policy-modal-title { text-align: center; margin-bottom: 16px; color: var(--text-accent); }
+.jws-policy-modal .policy-modal-content { max-height: 60vh; overflow-y: auto; padding-right: 8px; }
+.jws-policy-modal .policy-section { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--divider-color); }
+.jws-policy-modal .policy-section:last-of-type { border-bottom: none; }
+.jws-policy-modal .policy-section h3 { margin-top: 0; color: var(--text-normal); }
+.jws-policy-modal .policy-section ul { padding-left: 20px; margin: 4px 0; }
+.jws-policy-modal .policy-section li { margin-bottom: 4px; }
+.jws-policy-modal .policy-alert { padding: 8px 12px; margin: 8px 0; border-radius: 4px; font-size: 0.9em; }
+.jws-policy-modal .policy-alert.warning { background: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; }
+.jws-policy-modal .policy-footer { margin-top: 16px; text-align: center; font-size: 0.8em; color: var(--text-muted); }
+.jws-vacation-note { font-size: 0.75rem; color: var(--text-muted); margin: 2px 0; }
