@@ -5,7 +5,8 @@
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "node esbuild.config.mjs production",
+		"build": "node styles/build.mjs && node esbuild.config.mjs production",
+		"styles": "node styles/build.mjs",
 		"test": "node tests/run-tests.mjs"
 	},
 	"keywords": [],

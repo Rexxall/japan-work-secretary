@@ -55,6 +55,7 @@ export interface JapanWorkSecretarySettings {
 	customHolidays: string[]; // YYYY-MM-DD
 	holidayCache: { [date: string]: string };
 	holidayCacheUpdatedAt: number;
+	paperStyle: boolean;
 }
 
 export const DEFAULT_SETTINGS: JapanWorkSecretarySettings = {
@@ -76,7 +77,8 @@ export const DEFAULT_SETTINGS: JapanWorkSecretarySettings = {
 	payrollStartDay: 21,
 	customHolidays: [],
 	holidayCache: {},
-	holidayCacheUpdatedAt: 0
+	holidayCacheUpdatedAt: 0,
+	paperStyle: false
 }
 
 export class JapanWorkSecretarySettingTab extends PluginSettingTab {
@@ -91,46 +93,42 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Japan Work Secretary Settings' });
+		containerEl.addClass('jws-settings');
+		containerEl.createEl('h2', { text: 'Japan Work Secretary' });
 
-		const tabHeader = containerEl.createDiv({ attr: { style: 'display: flex; gap: 8px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--background-modifier-border);' } });
-		
+		const tabHeader = containerEl.createDiv({ cls: 'rk-seg jws-settings-tabs' });
 		const generalSec = containerEl.createDiv();
 		const wageSec = containerEl.createDiv();
 		const legalSec = containerEl.createDiv();
 
 		const sections = [
 			{ name: 'General', el: generalSec },
-			{ name: 'Wage Rates', el: wageSec },
-			{ name: 'Compliance & Cycle', el: legalSec }
+			{ name: 'Wage rates', el: wageSec },
+			{ name: 'Compliance & cycle', el: legalSec }
 		];
 
 		const btns: HTMLButtonElement[] = [];
-
+		const show = (index: number) => {
+			sections.forEach((section, i) => section.el.toggle(i === index));
+			btns.forEach((button, i) => button.toggleClass('is-active', i === index));
+		};
 		sections.forEach((sec, idx) => {
-			const btn = tabHeader.createEl('button', { 
-				text: sec.name, 
-				attr: { style: 'padding: 6px 14px; border-radius: 4px; border: none; cursor: pointer; font-size: 0.85rem;' } 
-			});
+			const btn = tabHeader.createEl('button', { text: sec.name });
 			btns.push(btn);
-
-			btn.onClickEvent(() => {
-				sections.forEach(s => s.el.style.display = 'none');
-				btns.forEach(b => b.style.background = 'rgba(255,255,255,0.05)');
-				
-				sec.el.style.display = 'block';
-				btn.style.background = 'var(--interactive-accent)';
-			});
-			
-			// Default active first
-			if (idx === 0) {
-				sec.el.style.display = 'block';
-				btn.style.background = 'var(--interactive-accent)';
-			} else {
-				sec.el.style.display = 'none';
-				btn.style.background = 'rgba(255,255,255,0.05)';
-			}
+			btn.onClickEvent(() => show(idx));
 		});
+		show(0);
+
+		new Setting(generalSec)
+			.setName('Paper & ink style')
+			.setDesc('Paper background, ink lines and serif numbers. Off follows your Obsidian theme.')
+			.addToggle(toggle => toggle
+				.setValue(!!this.plugin.settings.paperStyle)
+				.onChange(async (value) => {
+					this.plugin.settings.paperStyle = value;
+					await this.plugin.saveSettings();
+					this.plugin.refreshDashboards();
+				}));
 
 		// --- GENERAL TAB ---
 		new Setting(generalSec)
@@ -189,7 +187,29 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		// --- WAGE RATES TAB ---
-		wageSec.createEl('h3', {text: 'Wage Settings'});
+		wageSec.createEl('h3', {text: 'Default wage bands'});
+		// One strip for the whole day, so a missing or odd band is easy to spot.
+		const band = wageSec.createDiv({ cls: 'jws-band' });
+		const drawBand = () => {
+			band.empty();
+			const settings = this.plugin.settings;
+			const strip = band.createDiv({ cls: 'jws-band-strip' });
+			[
+				{ name: 'Morning', wage: settings.morningWage, hours: 3, cls: 'is-morning' },
+				{ name: 'Base', wage: settings.baseWage, hours: 8, cls: 'is-base' },
+				{ name: 'Evening', wage: settings.eveningWage, hours: 5, cls: 'is-evening' },
+				{ name: 'Night', wage: settings.nightWage, hours: 3, cls: 'is-night' }
+			].forEach(part => {
+				const seg = strip.createDiv({ cls: `jws-band-seg ${part.cls}` });
+				seg.style.flexGrow = String(part.hours);
+				seg.createDiv({ cls: 'jws-band-wage', text: `¥${Number(part.wage).toLocaleString()}` });
+				seg.createDiv({ cls: 'jws-band-name', text: part.name });
+			});
+			const ticks = band.createDiv({ cls: 'jws-band-ticks' });
+			['open', '09:00', '17:00', '22:00', 'close'].forEach(tick => ticks.createSpan({ text: tick }));
+		};
+		drawBand();
+		wageSec.addEventListener('input', () => window.setTimeout(drawBand, 0));
 
 		new Setting(wageSec)
 			.setName('Base Wage (09:00 - 17:00)')
@@ -277,8 +297,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		};
 
 		this.plugin.settings.storeConfigs.forEach((store, index) => {
-			const storeBox = wageSec.createDiv({ attr: { style: 'border: 1px solid var(--background-modifier-border); border-radius: 8px; padding: 12px; margin: 12px 0;' } });
-			storeBox.createEl('h4', { text: store.name, attr: { style: 'margin: 0 0 8px;' } });
+			const storeBox = wageSec.createDiv({ cls: 'jws-store-box' });
+			storeBox.createEl('h4', { text: store.name });
 
 			new Setting(storeBox)
 				.setName('Store Name')
@@ -312,8 +332,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					}));
 
 			(store.wageBands || []).forEach((band, bandIndex) => {
-				const bandBox = storeBox.createDiv({ attr: { style: 'border-top: 1px solid var(--background-modifier-border); margin-top: 10px; padding-top: 10px;' } });
-				bandBox.createEl('h5', { text: `Wage band from ${band.effectiveFrom}`, attr: { style: 'margin: 0 0 6px;' } });
+				const bandBox = storeBox.createDiv({ cls: 'jws-band-box' });
+				bandBox.createEl('h5', { text: `Wage band from ${band.effectiveFrom}` });
 
 				new Setting(bandBox)
 					.setName('Effective From')
