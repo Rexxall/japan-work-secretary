@@ -621,11 +621,11 @@ export class DashboardView extends ItemView {
 
             const vacationOver = tracker.findVacationDaysOverLimit(shiftsForCheck);
             if (tracker.isVacationDay(this.selectedDate.format('YYYY-MM-DD'))) {
-                limitInfo.createEl('p', { text: '长假期间：每天 8h 以内', cls: 'jws-vacation-note' });
+                limitInfo.createEl('p', { text: 'Long vacation: up to 8h a day', cls: 'jws-vacation-note' });
             }
             if (vacationOver.length > 0) {
                 limitInfo.createEl('p', {
-                    text: `⚠️ 长假超 8h：${vacationOver.map(day => `${moment(day.date).format('MM/DD')} ${day.hours}h`).join('、')}`,
+                    text: `⚠️ Over 8h on a vacation day: ${vacationOver.map(day => `${moment(day.date).format('MM/DD')} ${day.hours}h`).join(', ')}`,
                     cls: 'warning-text'
                 });
             }
@@ -734,20 +734,22 @@ export class DashboardView extends ItemView {
             return;
         }
 
-        const palette = ['#0d9488', '#7c3aed', '#2563eb', '#f59e0b', '#ef4444', '#10b981'];
+        // Same colours as the shift tags in styles.css, so each store looks the same everywhere.
+        const storeColors: Record<string, string> = { 'store-0': '#0d9488', 'store-1': '#7c3aed', 'store-2': '#db2777', 'store-3': '#2563eb', 'store-4': '#ea580c' };
+        const colorOf = (storeName: string) => storeColors[getStoreColorClass(this.plugin.settings, storeName)] || '#64748b';
         const shareBar = storeSection.createDiv({ cls: 'store-share-bar' });
-        storeRows.forEach(([storeName, wage], index) => {
+        storeRows.forEach(([storeName, wage]) => {
             const segment = shareBar.createDiv({ cls: 'store-share-segment' });
-            segment.style.background = palette[index % palette.length];
+            segment.style.background = colorOf(storeName);
             segment.style.flexBasis = `${(wage / storeTotal) * 100}%`;
             segment.setAttribute('title', `${getStoreShortName(this.plugin.settings, storeName)}: ¥${wage.toLocaleString()}`);
         });
 
         const legend = storeSection.createDiv({ cls: 'store-pie-legend' });
-        storeRows.forEach(([storeName, wage], index) => {
+        storeRows.forEach(([storeName, wage]) => {
             const row = legend.createDiv({ cls: 'store-pie-row' });
             const swatch = row.createSpan({ cls: 'store-pie-swatch' });
-            swatch.style.background = palette[index % palette.length];
+            swatch.style.background = colorOf(storeName);
             const percent = Math.round((wage / storeTotal) * 100);
             row.createSpan({ text: `${getStoreShortName(this.plugin.settings, storeName)} ${percent}%`, cls: 'store-pie-name' });
             row.createSpan({ text: `¥${wage.toLocaleString()}`, cls: 'store-pie-value' });
@@ -814,7 +816,7 @@ export class DashboardView extends ItemView {
                 
                 const shiftEl = dayEl.createDiv({ 
                     cls: `shift-tag ${isRecurring ? 'recurring' : ''} ${s.isPaidLeave ? 'paid-leave' : ''} ${storeClass}`, 
-                    text: (s.isPaidLeave ? '有给休暇' : `${s.startTime} ${storeShortName}`) + (s.isSynced ? ' ✅' : '')
+                    text: (s.isPaidLeave ? 'Paid leave' : `${s.startTime} ${storeShortName}`) + (s.isSynced ? ' ✅' : '')
                 });
                 
                 // Rich Interaction: Hover Details
@@ -1111,17 +1113,16 @@ export class DashboardView extends ItemView {
 
         const batchControls = addSection.createDiv({ cls: 'batch-controls' });
 
+        const seedWeekStart = this.selectedDate.clone().startOf('isoWeek');
+        const seedWeekEnd = seedWeekStart.clone().add(6, 'days');
+        const seedLabel = seedWeekStart.format('YYYY-MM-DD');
         const seedTemplateBtn = batchControls.createEl('button', {
-            text: 'Build Template from 2026-06-01 Week',
+            text: `Build Template from ${seedLabel} Week`,
             cls: 'template-seed-btn'
         });
         seedTemplateBtn.onClickEvent(async () => {
-            const count = await this.saveTemplateFromRange(
-                moment('2026-06-01', 'YYYY-MM-DD'),
-                moment('2026-06-07', 'YYYY-MM-DD'),
-                '2026-06-01 weekly pattern'
-            );
-            new Notice(count > 0 ? `Saved 2026-06-01 weekly template (${count} shift pattern(s)).` : 'No shifts found for 2026-06-01 to 2026-06-07.');
+            const count = await this.saveTemplateFromRange(seedWeekStart, seedWeekEnd, `${seedLabel} weekly pattern`);
+            new Notice(count > 0 ? `Saved ${seedLabel} weekly template (${count} shift pattern(s)).` : `No shifts found for ${seedLabel} to ${seedWeekEnd.format('YYYY-MM-DD')}.`);
             this.render();
         });
 
@@ -1452,7 +1453,7 @@ export class DashboardView extends ItemView {
         const card = container.createDiv({ cls: 'dashboard-card tax-strategy-card' });
         const headerRow = card.createDiv({ attr: { style: 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;' } });
         headerRow.createEl('h3', { text: 'Income Alerts', attr: { style: 'margin-bottom: 0;' } });
-        const infoBtn = headerRow.createEl('button', { text: 'ℹ️ 政策', cls: 'policy-info-btn', attr: { style: 'background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; cursor: pointer;' } });
+        const infoBtn = headerRow.createEl('button', { text: 'ℹ️ Rules', cls: 'policy-info-btn', attr: { style: 'background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; cursor: pointer;' } });
         infoBtn.onClickEvent(() => {
             new PolicyExplanationModal(this.plugin.app).open();
         });
@@ -1462,7 +1463,7 @@ export class DashboardView extends ItemView {
         const alerts = (this.plugin.settings.incomeAlerts || []).filter(alert => alert.enabled && alert.amount > 0);
         if (alerts.length === 0) {
             list.createEl('p', {
-                text: '未开启收入提醒线。可在设置 → 收入提醒线 里按当年规定填写。',
+                text: 'No income alerts set. Add the amounts for this year in Settings → Income Alerts.',
                 cls: 'tax-desc'
             });
         }
@@ -1513,7 +1514,7 @@ export class DashboardView extends ItemView {
         const remainingLeave = leaveBalance - usedLeave;
         
         const leaveItem = statsList.createDiv({ cls: 'legal-item' });
-        leaveItem.createDiv({ cls: 'legal-label', text: 'Paid Leave Balance (有给休暇)' });
+        leaveItem.createDiv({ cls: 'legal-label', text: 'Paid Leave Balance (有給休暇)' });
         leaveItem.createDiv({ cls: 'legal-value', text: `${remainingLeave} / ${leaveBalance} days` });
         
         const barContainer = leaveItem.createDiv({ cls: 'tax-bar-container' });
@@ -1656,13 +1657,13 @@ class ShiftShareModal extends Modal {
         const totalHours = shifts.reduce((sum, shift) => sum + (shift.calculatedHours || 0), 0);
         const totalWage = this.calculateTotal(shifts);
         const lines = [
-            `排班 ${start.format('YYYY/MM/DD')} - ${end.format('YYYY/MM/DD')}`,
-            `总工时 ${Math.round(totalHours * 10) / 10}h / 预估工资 ¥${totalWage.toLocaleString()}`,
+            `Shifts ${start.format('YYYY/MM/DD')} - ${end.format('YYYY/MM/DD')}`,
+            `Total ${Math.round(totalHours * 10) / 10}h / estimated wage ¥${totalWage.toLocaleString()}`,
             ''
         ];
 
         if (shifts.length === 0) {
-            lines.push('暂无排班');
+            lines.push('No shifts');
             return lines.join('\n');
         }
 
@@ -1678,7 +1679,7 @@ class ShiftShareModal extends Modal {
                 .sort((a, b) => a.startTime.localeCompare(b.startTime))
                 .forEach(shift => {
                     const label = shift.isPaidLeave
-                        ? `有给休暇 ${shift.storeName}`
+                        ? `Paid leave ${shift.storeName}`
                         : `${shift.startTime}-${shift.endTime} ${shift.storeName}`;
                     lines.push(`  ${label} (${shift.calculatedHours}h / ¥${Number(shift.calculatedWage || 0).toLocaleString()})`);
                 });
@@ -1850,6 +1851,7 @@ class EditShiftModal extends Modal {
         };
         updatePreview();
         [dateInput, startInput, endInput].forEach(el => el.oninput = updatePreview);
+        storeSelect.onchange = updatePreview;
 
         // Buttons
         const btnRow = form.createDiv({ cls: 'edit-shift-btn-row' });
@@ -1937,6 +1939,7 @@ class QuickAddShiftModal extends Modal {
         };
         updatePreview();
         [startInput, endInput].forEach(el => el.oninput = updatePreview);
+        storeSelect.onchange = updatePreview;
 
         const btnRow = form.createDiv({ cls: 'edit-shift-btn-row' });
 

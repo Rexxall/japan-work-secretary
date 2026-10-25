@@ -34,28 +34,28 @@ export class PolicyExplanationModal extends Modal {
         contentEl.empty();
         contentEl.addClass('jws-policy-modal');
 
-        contentEl.createEl('h2', { text: '打工时间与收入：参考说明', cls: 'policy-modal-title' });
+        contentEl.createEl('h2', { text: 'Work hours and income: reference', cls: 'policy-modal-title' });
         const container = contentEl.createDiv({ cls: 'policy-modal-content' });
 
         const hours = container.createDiv({ cls: 'policy-section' });
-        hours.createEl('h3', { text: '1. 资格外活动的时间上限（留学）' });
+        hours.createEl('h3', { text: '1. Hour limits for part-time work on a student visa' });
         const hoursList = hours.createEl('ul');
-        hoursList.createEl('li', { text: '平时：每周 28 小时以内。' });
-        hoursList.createEl('li', { text: '学校规定的长期休假期间：每天 8 小时以内。' });
-        hoursList.createEl('li', { text: '插件按“任意连续 7 天”检查 28 小时；长假期间改为逐日检查 8 小时（在设置里填写长假日期）。' });
+        hoursList.createEl('li', { text: 'During term: up to 28 hours a week.' });
+        hoursList.createEl('li', { text: 'During long vacations set by your school: up to 8 hours a day.' });
+        hoursList.createEl('li', { text: 'The plugin checks 28 hours across any 7 consecutive days, and 8 hours per day during long vacations (enter the dates in settings).' });
         hours.createDiv({
             cls: 'policy-alert warning',
-            text: '多份工作是否合计、长假的具体日期，请以学校和出入国在留管理庁的说明为准。'
+            text: 'Whether hours from several jobs are added together, and the exact vacation dates: follow your school and the Immigration Services Agency.'
         });
 
         const income = container.createDiv({ cls: 'policy-section' });
-        income.createEl('h3', { text: '2. 收入提醒线' });
+        income.createEl('h3', { text: '2. Income alerts' });
         const incomeList = income.createEl('ul');
-        incomeList.createEl('li', { text: '所得税、住民税、社会保险、扶养的收入界线每年都可能调整，也因个人情况不同。' });
-        incomeList.createEl('li', { text: '插件不内置任何税额判断。请在设置的“收入提醒线”里，按当年官方说明自己填写金额。' });
+        incomeList.createEl('li', { text: 'Thresholds for income tax, resident tax, social insurance and dependants change from year to year and depend on your situation.' });
+        incomeList.createEl('li', { text: 'The plugin has no built-in tax rules. Enter the amounts from this year\'s official guidance in Settings → Income Alerts.' });
 
         const links = container.createDiv({ cls: 'policy-section' });
-        links.createEl('h3', { text: '官方说明' });
+        links.createEl('h3', { text: 'Official sources (Japanese)' });
         const linkList = links.createEl('ul');
         for (const link of OFFICIAL_LINKS) {
             const li = linkList.createEl('li');
@@ -64,7 +64,7 @@ export class PolicyExplanationModal extends Modal {
 
         container.createDiv({
             cls: 'policy-footer',
-            text: '※ 本说明只作提醒，不构成法律或税务意见。'
+            text: 'This is a reminder only, not legal or tax advice.'
         });
     }
 

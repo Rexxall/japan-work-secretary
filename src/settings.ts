@@ -10,15 +10,15 @@ export interface IncomeAlert {
 }
 
 export const DEFAULT_INCOME_ALERTS: IncomeAlert[] = [
-	{ label: '月收入提醒线', amount: 88000, period: 'monthly', enabled: false },
-	{ label: '年收入提醒线 1', amount: 1030000, period: 'annual', enabled: false },
-	{ label: '年收入提醒线 2', amount: 1300000, period: 'annual', enabled: false }
+	{ label: 'Monthly income alert', amount: 88000, period: 'monthly', enabled: false },
+	{ label: 'Annual income alert 1', amount: 1030000, period: 'annual', enabled: false },
+	{ label: 'Annual income alert 2', amount: 1300000, period: 'annual', enabled: false }
 ];
 
 export function migrateIncomeAlerts(settings: Partial<JapanWorkSecretarySettings>): IncomeAlert[] {
 	if (Array.isArray(settings.incomeAlerts) && settings.incomeAlerts.length > 0) {
 		return settings.incomeAlerts.map(alert => ({
-			label: alert.label || '收入提醒线',
+			label: alert.label || 'Income alert',
 			amount: Number(alert.amount) || 0,
 			period: alert.period === 'annual' ? 'annual' : 'monthly',
 			enabled: !!alert.enabled
@@ -189,7 +189,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		// --- WAGE RATES TAB ---
-		wageSec.createEl('h3', {text: 'Wage Settings (时给设定)'});
+		wageSec.createEl('h3', {text: 'Wage Settings'});
 
 		new Setting(wageSec)
 			.setName('Base Wage (09:00 - 17:00)')
@@ -415,17 +415,17 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					this.display();
 				}));
 
-		legalSec.createEl('h3', {text: '收入提醒线'});
+		legalSec.createEl('h3', {text: 'Income Alerts'});
 		legalSec.createEl('p', {
-			text: '税、社会保险、扶养的收入界线每年可能调整，请按当年官方说明自己填写金额。插件只做提醒，不判断税额。',
+			text: 'Income thresholds for tax, social insurance and dependants change from year to year. Enter the amounts that apply to you this year. The plugin only reminds you; it does not work out tax.',
 			cls: 'setting-item-description'
 		});
 		this.plugin.settings.incomeAlerts.forEach((alert, index) => {
 			new Setting(legalSec)
-				.setName(alert.label || `提醒线 ${index + 1}`)
-				.setDesc(alert.period === 'annual' ? '按年收入（1–12 月）' : '按当月收入')
+				.setName(alert.label || `Alert ${index + 1}`)
+				.setDesc(alert.period === 'annual' ? 'Income for the calendar year (Jan–Dec)' : 'Income for the current month')
 				.addText(text => text
-					.setPlaceholder('名称')
+					.setPlaceholder('Name')
 					.setValue(alert.label)
 					.onChange(async (value) => {
 						alert.label = value.trim();
@@ -433,7 +433,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					}))
 				.addText(text => {
 					text.inputEl.type = 'number';
-					text.setPlaceholder('金额（日元）')
+					text.setPlaceholder('Amount (yen)')
 						.setValue(String(alert.amount || ''))
 						.onChange(async (value) => {
 							alert.amount = Math.max(0, Number(value) || 0);
@@ -441,8 +441,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 						});
 				})
 				.addDropdown(dropdown => dropdown
-					.addOption('monthly', '每月')
-					.addOption('annual', '每年')
+					.addOption('monthly', 'Monthly')
+					.addOption('annual', 'Annual')
 					.setValue(alert.period)
 					.onChange(async (value) => {
 						alert.period = value === 'annual' ? 'annual' : 'monthly';
@@ -458,8 +458,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		});
 
 		new Setting(legalSec)
-			.setName('长假期间（每天 8 小时）')
-			.setDesc('一行一个期间，例如 2026-08-01~2026-09-30。期间内按每天 8 小时检查，不计入 7 天 28 小时。日期以学校公布为准。')
+			.setName('Long vacations (8 hours a day)')
+			.setDesc('One period per line, e.g. 2026-08-01~2026-09-30. These days are checked against 8 hours each instead of the 28-hour week. Use the dates your school announces.')
 			.addTextArea(text => text
 				.setPlaceholder('2026-08-01~2026-09-30')
 				.setValue((this.plugin.settings.vacationPeriods || []).join('\n'))
@@ -481,7 +481,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(legalSec)
-			.setName('Paid Leave (Arikyu) Balance')
+			.setName('Paid Leave (有給休暇) Balance')
 			.setDesc('Number of days available')
 			.addText(text => text
 				.setValue(this.plugin.settings.paidLeaveBalance.toString())
