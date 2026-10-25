@@ -50,6 +50,12 @@ Japan Work Secretary keeps the schedule in your vault, works out the pay the way
 - **Sync to macOS Calendar.** Smart sync only writes shifts that changed since the last sync; a full sync rewrites everything in a range. Events carry a hidden marker, so they are updated in place instead of duplicated.
 - **Clean up.** When you sync, events whose shifts you have deleted are removed from the calendar.
 
+### Paper & ink style (optional)
+
+Turn it on in settings for a paper-and-ink look. Off by default, so the dashboard follows your theme. Below: adding a shift that would push the week over 28 hours.
+
+<img src="docs/screenshots/paper-quick-add.jpg" width="860">
+
 ## Install
 
 1. Download `japan-work-secretary-1.2.0.zip` from the latest release.
