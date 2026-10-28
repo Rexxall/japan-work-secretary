@@ -1,4 +1,5 @@
 import { Plugin, Notice, Editor, TFile, arrayBufferToBase64, normalizePath, requestUrl, moment } from 'obsidian';
+import { tr } from './i18n';
 import { JapanWorkSecretarySettingTab, DEFAULT_SETTINGS, JapanWorkSecretarySettings, migrateIncomeAlerts } from './settings';
 import { JapanWorkSecretaryData, DEFAULT_DATA, RecurringShift, Shift, normalizeStoreConfigs, parseRecurringInstanceId } from './data';
 import { DashboardView, DASHBOARD_VIEW_TYPE } from './dashboardView';
@@ -76,11 +77,11 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
         // Command: Parse Shift from Selection
         this.addCommand({
             id: 'parse-shift-text-selection',
-            name: 'Read shifts from selected text',
+            name: tr('Read shifts from selected text', '从选中的文字读取班次'),
             editorCallback: (editor: Editor) => {
                 const selection = editor.getSelection();
                 if (!selection) {
-                    new Notice('Select the text that contains your shifts first.');
+                    new Notice(tr('Select the text that contains your shifts first.', '请先选中含有班次的文字。'));
                     return;
                 }
                 void this.parseShiftSelection(selection);
@@ -89,34 +90,34 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
 
         this.addCommand({
             id: 'parse-shift-image',
-            name: 'Read shifts from images in the current note',
+            name: tr('Read shifts from images in the current note', '从当前笔记的图片读取班次'),
             callback: () => void this.parseShiftImage()
         });
 
         this.addCommand({
             id: 'open-dashboard',
-            name: 'Open dashboard',
+            name: tr('Open dashboard', '打开面板'),
             callback: () => void this.openDashboard()
         });
 
         this.addCommand({
             id: 'sync-smart-to-calendar',
-            name: 'Sync changed shifts to macOS Calendar',
+            name: tr('Sync changed shifts to macOS Calendar', '把改动的班次同步到 macOS 日历'),
             callback: () => void this.smartSyncCalendar()
         });
 
         this.addCommand({
             id: 'sync-all-to-calendar',
-            name: 'Rewrite all shifts in macOS Calendar',
+            name: tr('Rewrite all shifts in macOS Calendar', '在 macOS 日历里重写全部班次'),
             callback: () => void this.syncAllShifts()
         });
 
         this.addCommand({
             id: 'refresh-japanese-holidays',
-            name: 'Refresh Japanese holiday cache',
+            name: tr('Refresh Japanese holiday cache', '刷新日本假日缓存'),
             callback: async () => {
                 await this.refreshHolidayCache(true);
-                new Notice('Japanese holiday cache refreshed.');
+                new Notice(tr('Japanese holiday cache refreshed.', '已刷新日本假日缓存。'));
             }
         });
 
@@ -245,7 +246,7 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
     async processRawShifts(rawShifts: Shift[]) {
         if (!this.ensureScheduleMutationAllowed()) return;
         if (rawShifts.length === 0) {
-            new Notice('No shifts found to process.');
+            new Notice(tr('No shifts found to process.', '没有找到要处理的班次。'));
             return;
         }
 
@@ -276,10 +277,10 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
 
         if (newlyAddedShifts.length > 0) {
             await this.saveDataStore();
-            new Notice(`Added ${newlyAddedShifts.length} new shifts.`);
+            new Notice(tr(`Added ${newlyAddedShifts.length} new shifts.`, `新增 ${newlyAddedShifts.length} 个班次。`));
 
             if (this.calendarSyncInProgress) {
-                new Notice('Calendar sync is busy; new shifts were saved and will go out with the next sync.');
+                new Notice(tr('Calendar sync is busy; new shifts were saved and will go out with the next sync.', '日历正在同步。新班次已保存，下次同步时一起写入。'));
                 return;
             }
             this.calendarSyncInProgress = true;
@@ -310,22 +311,22 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
                     total: newlyAddedShifts.length
                 }));
             } catch (e) {
-                new Notice(`Calendar sync failed: ${errorMessage(e)}`);
+                new Notice(tr(`Calendar sync failed: ${errorMessage(e)}`, `日历同步失败：${errorMessage(e)}`));
             } finally {
                 this.calendarSyncInProgress = false;
             }
         } else {
-            new Notice('No new shifts added (possibly all duplicates).');
+            new Notice(tr('No new shifts added (possibly all duplicates).', '没有新增班次（可能都已存在）。'));
         }
     }
 
     async parseShiftSelection(selection: string) {
-        new Notice('Reading shifts from the selection...');
+        new Notice(tr('Reading shifts from the selection...', '正在从选中文字读取班次……'));
         try {
             const parser = new AIParser(this.getGeminiApiKey(), this.settings.storeConfigs);
-            this.reviewDrafts(await parser.parseText(selection), 'the selected text');
+            this.reviewDrafts(await parser.parseText(selection), tr('the selected text', '选中的文字'));
         } catch (error) {
-            new Notice(`Could not read the selection: ${errorMessage(error)}`);
+            new Notice(tr(`Could not read the selection: ${errorMessage(error)}`, `没能读取选中的文字：${errorMessage(error)}`));
         }
     }
 
@@ -333,7 +334,7 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
     async parseShiftImage() {
         const activeFile = this.app.workspace.getActiveFile();
         if (!activeFile) {
-            new Notice('Open a note with a schedule image first.');
+            new Notice(tr('Open a note with a schedule image first.', '请先打开含排班图片的笔记。'));
             return;
         }
 
@@ -344,7 +345,7 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
             if (file && IMAGE_TYPES[file.extension.toLowerCase()] && !images.includes(file)) images.push(file);
         }
         if (images.length === 0) {
-            new Notice('No images found in this note.');
+            new Notice(tr('No images found in this note.', '这篇笔记里没有图片。'));
             return;
         }
 
@@ -355,22 +356,22 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
             new Notice(errorMessage(error));
             return;
         }
-        new Notice(images.length === 1 ? 'Reading 1 image...' : `Reading ${images.length} images...`);
+        new Notice(tr(images.length === 1 ? 'Reading 1 image...' : `Reading ${images.length} images...`, `正在读取 ${images.length} 张图片……`));
         const drafts: ParsedShiftDraft[] = [];
         for (const image of images) {
             try {
                 const data = arrayBufferToBase64(await this.app.vault.readBinary(image));
                 drafts.push(...await parser.parseImage(data, IMAGE_TYPES[image.extension.toLowerCase()]));
             } catch (error) {
-                new Notice(`Could not read ${image.name}: ${errorMessage(error)}`);
+                new Notice(tr(`Could not read ${image.name}: ${errorMessage(error)}`, `没能读取 ${image.name}：${errorMessage(error)}`));
             }
         }
-        this.reviewDrafts(drafts, images.length === 1 ? images[0].name : `${images.length} images`);
+        this.reviewDrafts(drafts, images.length === 1 ? images[0].name : tr(`${images.length} images`, ` ${images.length} 张图片`));
     }
 
     private reviewDrafts(drafts: ParsedShiftDraft[], source: string) {
         if (drafts.length === 0) {
-            new Notice('No shifts found.');
+            new Notice(tr('No shifts found.', '没有找到班次。'));
             return;
         }
         new ShiftReviewModal(this.app, this, drafts, source, async confirmed => {
@@ -398,7 +399,7 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
 
     async exportIcs(shifts: Shift[]) {
         const file = await this.writeVaultFile('shifts.ics', buildShiftsIcs(shifts, this.settings.eventTitlePrefix, new Date()));
-        new Notice(`Saved ${file.path}. Open it to add ${shifts.length === 1 ? 'the shift' : 'the shifts'} to your calendar.`);
+        new Notice(tr(`Saved ${file.path}. Open it to add ${shifts.length === 1 ? 'the shift' : 'the shifts'} to your calendar.`, `已保存 ${file.path}。打开它即可把班次加入日历。`));
     }
 
     async openDashboard() {
@@ -514,7 +515,7 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
 
     ensureScheduleMutationAllowed(): boolean {
         if (!this.calendarSyncInProgress) return true;
-        new Notice('Please wait for Calendar sync to finish before changing the schedule or target calendar.');
+        new Notice(tr('Please wait for Calendar sync to finish before changing the schedule or target calendar.', '请等日历同步完成后再改排班或目标日历。'));
         return false;
     }
 
@@ -524,12 +525,12 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
 
     private formatCalendarSyncSummary(summary: CalendarSyncSummary): string {
         return [
-            `Calendar sync (${summary.total})`,
-            `created ${summary.created}`,
-            `updated ${summary.updated}`,
-            `deleted ${summary.deleted}`,
-            `skipped ${summary.skipped}`,
-            `failed ${summary.failed}`
+            tr(`Calendar sync (${summary.total})`, `日历同步（${summary.total}）`),
+            tr(`created ${summary.created}`, `新建 ${summary.created}`),
+            tr(`updated ${summary.updated}`, `更新 ${summary.updated}`),
+            tr(`deleted ${summary.deleted}`, `删除 ${summary.deleted}`),
+            tr(`skipped ${summary.skipped}`, `跳过 ${summary.skipped}`),
+            tr(`failed ${summary.failed}`, `失败 ${summary.failed}`)
         ].join(' · ');
     }
 
@@ -595,7 +596,7 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
 
     async syncCalendar(options: CalendarSyncOptions): Promise<CalendarSyncSummary> {
         if (this.calendarSyncInProgress) {
-            new Notice('Calendar sync is already running.');
+            new Notice(tr('Calendar sync is already running.', '日历正在同步。'));
             return { created: 0, updated: 0, deleted: 0, skipped: 0, failed: 0, total: 0 };
         }
         this.calendarSyncInProgress = true;
@@ -607,12 +608,12 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
         const includeAllManualShifts = options.mode !== 'range';
         const force = options.mode === 'full';
         const modeLabel = options.mode === 'smart'
-            ? 'Smart sync'
+            ? tr('Smart sync', '智能同步')
             : options.mode === 'full'
-                ? 'Force full sync'
-                : `Range sync${options.label ? ` (${options.label})` : ''}`;
+                ? tr('Force full sync', '全部重写')
+                : `${tr('Range sync', '同步本期')}${options.label ? ` (${options.label})` : ''}`;
 
-        new Notice(`${modeLabel}: preparing Calendar changes...`);
+        new Notice(tr(`${modeLabel}: preparing Calendar changes...`, `${modeLabel}：正在准备日历改动……`));
 
         try {
             const shifts = collectCalendarSyncShifts(
@@ -695,7 +696,7 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
             return summary;
         } catch (error) {
             const message = errorMessage(error);
-            new Notice(`Calendar sync failed: ${message}`);
+            new Notice(tr(`Calendar sync failed: ${message}`, `日历同步失败：${message}`));
             return {
                 created: 0,
                 updated: 0,

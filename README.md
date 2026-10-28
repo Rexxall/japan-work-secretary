@@ -47,7 +47,7 @@ Japan Work Secretary keeps the schedule in your vault, works out the pay the way
 
 ### Calendar
 
-- **Sync to macOS Calendar.** Smart sync only writes shifts that changed since the last sync; a full sync rewrites everything in a range. Events carry a hidden marker, so they are updated in place instead of duplicated.
+- **Sync to macOS Calendar** from the ⋯ menu. Smart sync only writes shifts that changed since the last sync; a full sync rewrites everything in a range. Events carry a hidden marker, so they are updated in place instead of duplicated.
 - **Clean up.** When you sync, events whose shifts you have deleted are removed from the calendar.
 - **Any other calendar:** *Share or export → Export .ics* saves a calendar file for Google Calendar, Outlook or your phone. Events keep the shift's ID, so importing again updates them.
 
@@ -116,7 +116,6 @@ npm test          # 27 tests: 28-hour windows, vacations, wages, calendar sync p
 
 - Rules about hours and income are for reference only. Check your school and the official pages linked in the dashboard (ⓘ).
 - Calendar sync works with the macOS Calendar app only.
-- The interface mixes English and Chinese.
 
 ## Changelog
 
@@ -139,7 +138,8 @@ npm test          # 27 tests: 28-hour windows, vacations, wages, calendar sync p
 - The 7-day card shows the hours of each day in that window.
 - Adding a shift shows what it does to the busiest 7 days before you save; above 28 hours the button reads "Save anyway".
 - Settings show the default wage bands as one strip across the day.
-- Optional **Paper & ink style** in settings. Off by default, so the dashboard follows your theme.
+- Chinese interface when Obsidian is set to Chinese; English otherwise. Dates follow the same language.
+- A quieter dashboard: only Overview and Manage at the top, month or week beside the calendar, hours and pay in one card, shifts as thin capsules. Counting by calendar or work month and the three calendar sync modes moved to the ⋯ menu.
 - Styles rewritten from scratch on a small shared style kit; the dashboard no longer uses inline styles.
 
 **1.2.0**
@@ -167,6 +167,7 @@ MIT
 - **工资：** 早、日、晚、深夜分时段时薪，按店铺设置；时薪上调可按生效日期新增；休息按实际填写扣除，没填就按排班原样计并标“未填休息”（法定 6 小时以上 45 分钟、8 小时以上 60 分钟是雇主应给的休息，不代表一定休了）；加班、节假日加给、交通费、从任意一天开始的工资月。
 - **上限：** 任意连续 7 天 28 小时；学校长假期间改为每天 8 小时（在设置里填长假日期）；一周里学期和长假混在一起时，从严按全部工时计 28 小时并提示；收入提醒线由你按当年规定自己填写，插件不替你判断税额。
 - **日历：** 同步到 macOS 日历，只写有变化的班次，用隐藏标记原地更新、不重复；也可导出 .ics 给 Google 日历、Outlook、手机。
+- **中文界面（1.4.0）：** Obsidian 设为中文时整个界面显示中文，否则显示英文；按自然月或工资月统计、三种日历同步都放在面板右上角的 ⋯ 菜单里。
 - **工资笔记（1.4.0）：** 按所选区间生成 Markdown 笔记，列出每个班次、按店合计和含加班的总额，方便对照工资条。
 - **密钥（1.4.0）：** 存在 Obsidian 的密钥库里，可与其他插件共用；旧版存的密钥首次启动自动迁移。需 Obsidian 1.11.4 以上。
 - **隐私：** 数据都在你的库里；只有在你执行识别命令时，选中的文字或图片才会发给 Gemini。

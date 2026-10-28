@@ -19,7 +19,6 @@
 
 /* Header and toolbar */
 .japan-work-dashboard .jws-head.ap-bar-glass { margin: -22px -26px 14px; padding: 18px 26px 12px; }
-.japan-work-dashboard .jws-icon-btn { min-width: 30px; padding: 0 8px; }
 
 .japan-work-dashboard .jws-toolbar {
 	display: flex;
@@ -29,15 +28,6 @@
 	margin-bottom: 18px;
 }
 
-.japan-work-dashboard .jws-sync {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	margin-left: auto;
-	font-size: var(--font-ui-smaller);
-}
-
-.japan-work-dashboard .jws-sync button,
 .japan-work-dashboard .jws-small-btn {
 	height: auto;
 	padding: 3px 10px;
@@ -47,10 +37,19 @@
 /* Stat cards */
 .japan-work-dashboard .jws-stats {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 	gap: 14px;
 	margin-bottom: 18px;
 }
+
+/* Hours and pay share one card; the figures sit on a row split by a hairline */
+.japan-work-dashboard .jws-summary { display: flex; flex-direction: column; }
+.japan-work-dashboard .jws-summary-stats { flex: 1; align-items: start; margin: 0 calc(-1 * var(--ap-s4)); }
+.japan-work-dashboard .jws-summary-stats .ap-stat-value { font-size: 26px; line-height: 32px; }
+
+/* Calendar heading: label on the left, month or week on the right */
+.japan-work-dashboard .jws-cal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ap-s3); margin-bottom: var(--ap-s2); }
+.japan-work-dashboard .jws-cal-head .ap-label { margin: 0; }
 
 .japan-work-dashboard .jws-card-note { margin-top: 10px; }
 
@@ -181,7 +180,7 @@
 .japan-work-dashboard .jws-day.is-other-month .jws-day-number { opacity: 0.4; }
 .japan-work-dashboard .jws-day.is-weekend .jws-day-number { color: var(--ap-label-2); }
 .japan-work-dashboard .jws-day.is-holiday .jws-day-number { color: var(--ap-bad); }
-.japan-work-dashboard .jws-day.is-selected { box-shadow: inset 0 0 0 2px var(--ap-accent); border-radius: var(--ap-r-field); }
+.japan-work-dashboard .jws-day.is-selected .jws-day-number { border-radius: var(--ap-r-pill); background: var(--ap-fill-strong); }
 
 .japan-work-dashboard .jws-day-number {
 	display: inline-block;
@@ -192,15 +191,11 @@
 	font-variant-numeric: tabular-nums;
 }
 
-.japan-work-dashboard .jws-day.is-today .jws-day-number {
-	border-radius: 99px;
-	background: var(--interactive-accent);
-	color: var(--text-on-accent);
-}
+.japan-work-dashboard .jws-day.is-today .jws-day-number { color: var(--ap-accent); font-weight: 700; }
 
 /* The busiest 7 days, drawn on the calendar */
-.japan-work-dashboard .jws-day.in-peak { background: var(--ap-warn-soft); }
-.japan-work-dashboard .jws-day.in-peak.is-over { background: var(--ap-bad-soft); }
+.japan-work-dashboard .jws-day.in-peak { background: color-mix(in srgb, var(--ap-warn) 5%, transparent); }
+.japan-work-dashboard .jws-day.in-peak.is-over { background: color-mix(in srgb, var(--ap-bad) 5%, transparent); }
 .japan-work-dashboard .jws-day.in-peak::after {
 	content: "";
 	position: absolute;
@@ -215,26 +210,25 @@
 .japan-work-dashboard .jws-day.in-peak.is-over.peak-start::after,
 .japan-work-dashboard .jws-day.in-peak.is-over.peak-end::after { border-color: var(--ap-bad); }
 
-/* Shift chips */
+/* Shifts: thin capsules tinted with the store colour */
 .japan-work-dashboard .jws-shift {
 	display: flex;
 	align-items: center;
-	gap: 5px;
-	margin-top: 4px;
-	padding: 2px 6px;
+	gap: 4px;
+	margin-top: 3px;
+	padding: 1px 8px;
 	overflow: hidden;
-	border-left: 3px solid var(--jws-store);
-	border-radius: 4px;
-	background: color-mix(in srgb, var(--jws-store) 13%, transparent);
-	font-size: var(--font-ui-smaller);
+	border-radius: var(--ap-r-pill);
+	background: color-mix(in srgb, var(--jws-store) 14%, transparent);
+	font: 500 11px/16px var(--ap-font);
 	white-space: nowrap;
 	cursor: pointer;
 }
 
-.japan-work-dashboard .jws-shift.is-recurring { border-left-style: dashed; }
+.japan-work-dashboard .jws-shift.is-recurring { outline: 1px dashed color-mix(in srgb, var(--jws-store) 55%, transparent); outline-offset: -1px; }
 .japan-work-dashboard .jws-shift.is-paid-leave { font-style: italic; color: var(--ap-label-2); }
-.japan-work-dashboard .jws-shift-store { font-weight: 700; color: var(--jws-store); }
-.japan-work-dashboard .jws-shift-time { overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.japan-work-dashboard .jws-shift-store { font-weight: 600; color: var(--jws-store); }
+.japan-work-dashboard .jws-shift-time { overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; color: var(--ap-label); }
 
 .japan-work-dashboard .jws-shift-synced {
 	flex: none;

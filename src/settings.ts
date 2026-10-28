@@ -1,4 +1,5 @@
 import { App, PluginSettingTab, SecretComponent, Setting } from 'obsidian';
+import { tr } from './i18n';
 import JapanWorkSecretaryPlugin from './main';
 import { EffectiveWageBandConfig, StoreConfig, WageBandConfig, cloneDefaultStoreConfigs, normalizeStoreConfigs } from './data';
 
@@ -10,9 +11,9 @@ export interface IncomeAlert {
 }
 
 export const DEFAULT_INCOME_ALERTS: IncomeAlert[] = [
-	{ label: 'Monthly income alert', amount: 88000, period: 'monthly', enabled: false },
-	{ label: 'Annual income alert 1', amount: 1030000, period: 'annual', enabled: false },
-	{ label: 'Annual income alert 2', amount: 1300000, period: 'annual', enabled: false }
+	{ label: tr('Monthly income alert', '月收入提醒'), amount: 88000, period: 'monthly', enabled: false },
+	{ label: tr('Annual income alert 1', '年收入提醒 1'), amount: 1030000, period: 'annual', enabled: false },
+	{ label: tr('Annual income alert 2', '年收入提醒 2'), amount: 1300000, period: 'annual', enabled: false }
 ];
 
 export function migrateIncomeAlerts(settings: Partial<JapanWorkSecretarySettings>): IncomeAlert[] {
@@ -104,9 +105,9 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		const legalSec = containerEl.createDiv();
 
 		const sections = [
-			{ name: 'General', el: generalSec },
-			{ name: 'Wage rates', el: wageSec },
-			{ name: 'Compliance & cycle', el: legalSec }
+			{ name: tr('General', '常规'), el: generalSec },
+			{ name: tr('Wage rates', '时薪'), el: wageSec },
+			{ name: tr('Compliance & cycle', '规则与周期'), el: legalSec }
 		];
 
 		const btns: HTMLButtonElement[] = [];
@@ -123,8 +124,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 
 		// --- GENERAL TAB ---
 		new Setting(generalSec)
-			.setName('Gemini API key')
-			.setDesc('Optional, for reading shifts from text or photos. Choose or create a secret in Obsidian\'s secret storage; other plugins can use the same one.')
+			.setName(tr('Gemini API key', 'Gemini API 密钥'))
+			.setDesc(tr('Optional, for reading shifts from text or photos. Choose or create a secret in Obsidian\'s secret storage; other plugins can use the same one.', '可不填，用于从文字或照片读取班次。在 Obsidian 的密钥库里选择或新建，其他插件也能共用。'))
 			.addComponent(el => new SecretComponent(this.app, el)
 				.setValue(this.plugin.settings.geminiSecretName)
 				.onChange(async value => {
@@ -133,8 +134,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(generalSec)
-			.setName('macOS Calendar name')
-			.setDesc('Target calendar in macOS Calendar. Changing it syncs into the new calendar; existing events in the previous calendar are not removed automatically.')
+			.setName(tr('macOS Calendar name', 'macOS 日历名称'))
+			.setDesc(tr('Target calendar in macOS Calendar. Changing it syncs into the new calendar; existing events in the previous calendar are not removed automatically.', '写入 macOS 日历里的哪个日历。改了以后同步到新日历，旧日历里已有的事件不会自动删除。'))
 			.addText(text => text
 				.setPlaceholder('Work')
 				.setValue(this.plugin.settings.calendarName)
@@ -145,8 +146,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(generalSec)
-			.setName('Event title prefix')
-			.setDesc('Calendar events are titled "<prefix>: <store>". Existing events are matched by a hidden marker, so changing this only renames them on the next sync.')
+			.setName(tr('Event title prefix', '事件标题前缀'))
+			.setDesc(tr('Calendar events are titled "<prefix>: <store>". Existing events are matched by a hidden marker, so changing this only renames them on the next sync.', '日历事件标题为“前缀: 店名”。已有事件靠隐藏标记识别，改前缀只会在下次同步时改名。'))
 			.addText(text => text
 				.setPlaceholder('打工')
 				.setValue(this.plugin.settings.eventTitlePrefix)
@@ -156,8 +157,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(generalSec)
-			.setName('Export folder')
-			.setDesc('Where pay notes and .ics calendar files are saved.')
+			.setName(tr('Export folder', '导出文件夹'))
+			.setDesc(tr('Where pay notes and .ics calendar files are saved.', '工资笔记和 .ics 日历文件的保存位置。'))
 			.addText(text => text
 				.setPlaceholder(DEFAULT_SETTINGS.exportFolder)
 				.setValue(this.plugin.settings.exportFolder)
@@ -167,7 +168,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		// --- WAGE RATES TAB ---
-		new Setting(wageSec).setName('Default wage bands').setHeading();
+		new Setting(wageSec).setName(tr('Default wage bands', '默认时薪段')).setHeading();
 		// One strip for the whole day, so a missing or odd band is easy to spot.
 		const band = wageSec.createDiv({ cls: 'jws-band' });
 		const drawBand = () => {
@@ -175,10 +176,10 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 			const settings = this.plugin.settings;
 			const strip = band.createDiv({ cls: 'jws-band-strip' });
 			[
-				{ name: 'Morning', wage: settings.morningWage, hours: 3, cls: 'is-morning' },
-				{ name: 'Base', wage: settings.baseWage, hours: 8, cls: 'is-base' },
-				{ name: 'Evening', wage: settings.eveningWage, hours: 5, cls: 'is-evening' },
-				{ name: 'Night', wage: settings.nightWage, hours: 3, cls: 'is-night' }
+				{ name: tr('Morning', '早班'), wage: settings.morningWage, hours: 3, cls: 'is-morning' },
+				{ name: tr('Base', '基本'), wage: settings.baseWage, hours: 8, cls: 'is-base' },
+				{ name: tr('Evening', '晚班'), wage: settings.eveningWage, hours: 5, cls: 'is-evening' },
+				{ name: tr('Night', '深夜'), wage: settings.nightWage, hours: 3, cls: 'is-night' }
 			].forEach(part => {
 				const seg = strip.createDiv({ cls: `jws-band-seg ${part.cls}` });
 				seg.setCssProps({ '--jws-grow': String(part.hours) });
@@ -192,7 +193,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		wageSec.addEventListener('input', () => window.setTimeout(drawBand, 0));
 
 		new Setting(wageSec)
-			.setName('Base wage (09:00–17:00)')
+			.setName(tr('Base wage (09:00–17:00)', '基本时薪（09:00–17:00）'))
 			.addText(text => text
 				.setValue(this.plugin.settings.baseWage.toString())
 				.onChange(async (value) => {
@@ -201,7 +202,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(wageSec)
-			.setName('Morning wage (opening–09:00)')
+			.setName(tr('Morning wage (opening–09:00)', '早班时薪（开店–09:00）'))
 			.addText(text => text
 				.setValue(this.plugin.settings.morningWage.toString())
 				.onChange(async (value) => {
@@ -210,7 +211,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(wageSec)
-			.setName('Evening wage (17:00–22:00)')
+			.setName(tr('Evening wage (17:00–22:00)', '晚班时薪（17:00–22:00）'))
 			.addText(text => text
 				.setValue(this.plugin.settings.eveningWage.toString())
 				.onChange(async (value) => {
@@ -219,7 +220,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(wageSec)
-			.setName('Night wage (22:00–closing)')
+			.setName(tr('Night wage (22:00–closing)', '深夜时薪（22:00–闭店）'))
 			.addText(text => text
 				.setValue(this.plugin.settings.nightWage.toString())
 				.onChange(async (value) => {
@@ -228,7 +229,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(wageSec)
-			.setName('Sunday and holiday bonus per hour')
+			.setName(tr('Sunday and holiday bonus per hour', '周日和节假日每小时加给'))
 			.addText(text => text
 				.setValue(this.plugin.settings.holidayBonus.toString())
 				.onChange(async (value) => {
@@ -237,8 +238,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(wageSec)
-			.setName('Daily commuting allowance')
-			.setDesc('Added to your wage for each workday.')
+			.setName(tr('Daily commuting allowance', '每日交通费'))
+			.setDesc(tr('Added to your wage for each workday.', '每个上班日加到工资里。'))
 			.addText(text => text
 				.setPlaceholder('500')
 				.setValue(this.plugin.settings.commutingAllowance.toString())
@@ -247,9 +248,9 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(wageSec).setName('Wage bands by store').setHeading();
+		new Setting(wageSec).setName(tr('Wage bands by store', '各店时薪段')).setHeading();
 		wageSec.createEl('p', {
-			text: 'Each store can override the default wage bands above.',
+			text: tr('Each store can override the default wage bands above.', '每家店可以单独设时薪，覆盖上面的默认值。'),
 			cls: 'setting-item-description'
 		});
 
@@ -281,7 +282,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 			new Setting(storeBox).setName(store.name).setHeading();
 
 			new Setting(storeBox)
-				.setName('Store name')
+				.setName(tr('Store name', '店名'))
 				.addText(text => text
 					.setValue(store.name)
 					.onChange(async (value) => {
@@ -292,8 +293,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					}));
 
 			new Setting(storeBox)
-				.setName('Aliases')
-				.setDesc('Other names or abbreviations for this store, comma separated. Used when reading schedules.')
+				.setName(tr('Aliases', '别名'))
+				.setDesc(tr('Other names or abbreviations for this store, comma separated. Used when reading schedules.', '这家店的其他叫法或简称，用逗号隔开。读排班时用。'))
 				.addTextArea(text => text
 					.setValue(store.aliases.join(', '))
 					.onChange(async (value) => {
@@ -303,8 +304,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					}));
 
 			new Setting(storeBox)
-				.setName('Short label')
-				.setDesc('Shown on small calendar chips.')
+				.setName(tr('Short label', '简称'))
+				.setDesc(tr('Shown on small calendar chips.', '显示在日历的小胶囊上。'))
 				.addText(text => text
 					.setValue(store.shortName || store.name)
 					.onChange(async (value) => {
@@ -313,10 +314,10 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 
 			(store.wageBands || []).forEach((band, bandIndex) => {
 				const bandBox = storeBox.createDiv({ cls: 'jws-band-box' });
-				new Setting(bandBox).setName(band.effectiveFrom === '0000-01-01' ? 'Wage band from the start' : `Wage band from ${band.effectiveFrom}`).setHeading();
+				new Setting(bandBox).setName(band.effectiveFrom === '0000-01-01' ? tr('Wage band from the start', '最初的时薪段') : tr(`Wage band from ${band.effectiveFrom}`, `${band.effectiveFrom} 起的时薪段`)).setHeading();
 
 				new Setting(bandBox)
-					.setName('Effective from')
+					.setName(tr('Effective from', '生效日期'))
 					.addText(text => {
 						text.inputEl.type = 'date';
 						text.setValue(band.effectiveFrom === '0000-01-01' ? '' : band.effectiveFrom)
@@ -327,12 +328,12 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					});
 
 				[
-					{ key: 'baseWage', label: 'Base wage (09:00–17:00)' },
-					{ key: 'morningWage', label: 'Morning wage (opening–09:00)' },
-					{ key: 'eveningWage', label: 'Evening wage (17:00–22:00)' },
-					{ key: 'nightWage', label: 'Night wage (22:00–closing)' },
-					{ key: 'holidayBonus', label: 'Sunday and holiday bonus per hour' },
-					{ key: 'commutingAllowance', label: 'Daily commuting allowance' }
+					{ key: 'baseWage', label: tr('Base wage (09:00–17:00)', '基本时薪（09:00–17:00）') },
+					{ key: 'morningWage', label: tr('Morning wage (opening–09:00)', '早班时薪（开店–09:00）') },
+					{ key: 'eveningWage', label: tr('Evening wage (17:00–22:00)', '晚班时薪（17:00–22:00）') },
+					{ key: 'nightWage', label: tr('Night wage (22:00–closing)', '深夜时薪（22:00–闭店）') },
+					{ key: 'holidayBonus', label: tr('Sunday and holiday bonus per hour', '周日和节假日每小时加给') },
+					{ key: 'commutingAllowance', label: tr('Daily commuting allowance', '每日交通费') }
 				].forEach(({ key, label }) => {
 					new Setting(bandBox)
 						.setName(label)
@@ -345,9 +346,9 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 
 				if ((store.wageBands || []).length > 1) {
 					new Setting(bandBox)
-						.setName('Remove this wage band')
+						.setName(tr('Remove this wage band', '删除这个时薪段'))
 						.addButton(button => button
-							.setButtonText('Remove')
+							.setButtonText(tr('Remove', '删除'))
 							.onClick(async () => {
 								const stores = normalizeStoreConfigs(this.plugin.settings.storeConfigs);
 								const wageBands = [...(stores[index].wageBands || [])];
@@ -359,10 +360,10 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 			});
 
 			new Setting(storeBox)
-				.setName('Add wage band')
-				.setDesc('When your hourly wage changes from a certain date. Earlier shifts keep the old rates.')
+				.setName(tr('Add wage band', '加时薪段'))
+				.setDesc(tr('When your hourly wage changes from a certain date. Earlier shifts keep the old rates.', '时薪从某天起变化时用。之前的班次仍按旧时薪。'))
 				.addButton(button => button
-					.setButtonText('Add')
+					.setButtonText(tr('Add', '添加'))
 					.onClick(async () => {
 						const stores = normalizeStoreConfigs(this.plugin.settings.storeConfigs);
 						const wageBands = [...(stores[index].wageBands || [])];
@@ -377,11 +378,11 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		});
 
 		// --- COMPLIANCE TAB ---
-		new Setting(legalSec).setName('Payroll and holidays').setHeading();
+		new Setting(legalSec).setName(tr('Payroll and holidays', '工资月与节假日')).setHeading();
 
 		new Setting(legalSec)
-			.setName('Payroll month starts on day')
-			.setDesc('For example 21 for a 21st-to-20th cycle. Use 1 for calendar months.')
+			.setName(tr('Payroll month starts on day', '工资月从几号开始'))
+			.setDesc(tr('For example 21 for a 21st-to-20th cycle. Use 1 for calendar months.', '例如 21 表示 21 日到次月 20 日。按自然月填 1。'))
 			.addText(text => text
 				.setPlaceholder('21')
 				.setValue((this.plugin.settings.payrollStartDay || 21).toString())
@@ -391,8 +392,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(legalSec)
-			.setName('Extra holidays')
-			.setDesc('One date (YYYY-MM-DD) per line, paid like a public holiday.')
+			.setName(tr('Extra holidays', '额外假日'))
+			.setDesc(tr('One date (YYYY-MM-DD) per line, paid like a public holiday.', '每行一个日期（YYYY-MM-DD），按法定假日计薪。'))
 			.addTextArea(text => text
 				.setPlaceholder('2026-05-01\n2026-12-31')
 				.setValue((this.plugin.settings.customHolidays || []).join('\n'))
@@ -406,26 +407,26 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 			: 'never';
 
 		new Setting(legalSec)
-			.setName('Japanese public holidays')
-			.setDesc(`Downloaded from holidays-jp.github.io and cached for a week. Last updated: ${holidayUpdatedText}`)
+			.setName(tr('Japanese public holidays', '日本法定假日'))
+			.setDesc(tr(`Downloaded from holidays-jp.github.io and cached for a week. Last updated: ${holidayUpdatedText}`, `从 holidays-jp.github.io 下载，缓存一周。上次更新：${holidayUpdatedText}`))
 			.addButton(button => button
-				.setButtonText('Refresh now')
+				.setButtonText(tr('Refresh now', '立即刷新'))
 				.onClick(async () => {
 					await this.plugin.refreshHolidayCache(true);
 					this.display();
 				}));
 
-		new Setting(legalSec).setName('Income alerts').setHeading();
+		new Setting(legalSec).setName(tr('Income alerts', '收入提醒')).setHeading();
 		legalSec.createEl('p', {
-			text: 'Income thresholds for tax, social insurance and dependants change from year to year. Enter the amounts that apply to you this year. The plugin only reminds you; it does not work out tax.',
+			text: tr('Income thresholds for tax, social insurance and dependants change from year to year. Enter the amounts that apply to you this year. The plugin only reminds you; it does not work out tax.', '税、社保和扶养的收入门槛每年会变。请填今年适用于你的金额。本插件只做提醒，不计算税额。'),
 			cls: 'setting-item-description'
 		});
 		this.plugin.settings.incomeAlerts.forEach((alert, index) => {
 			new Setting(legalSec)
 				.setName(alert.label || `Alert ${index + 1}`)
-				.setDesc(alert.period === 'annual' ? 'Income for the calendar year (January to December).' : 'Income for the current month.')
+				.setDesc(alert.period === 'annual' ? tr('Income for the calendar year (January to December).', '自然年（1 月到 12 月）的收入。') : tr('Income for the current month.', '当月的收入。'))
 				.addText(text => text
-					.setPlaceholder('Name')
+					.setPlaceholder(tr('Name', '名称'))
 					.setValue(alert.label)
 					.onChange(async (value) => {
 						alert.label = value.trim();
@@ -433,7 +434,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					}))
 				.addText(text => {
 					text.inputEl.type = 'number';
-					text.setPlaceholder('Amount (yen)')
+					text.setPlaceholder(tr('Amount (yen)', '金额（日元）'))
 						.setValue(String(alert.amount || ''))
 						.onChange(async (value) => {
 							alert.amount = Math.max(0, Number(value) || 0);
@@ -441,8 +442,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 						});
 				})
 				.addDropdown(dropdown => dropdown
-					.addOption('monthly', 'Monthly')
-					.addOption('annual', 'Annual')
+					.addOption('monthly', tr('Monthly', '每月'))
+					.addOption('annual', tr('Annual', '每年'))
 					.setValue(alert.period)
 					.onChange(async (value) => {
 						alert.period = value === 'annual' ? 'annual' : 'monthly';
@@ -458,8 +459,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		});
 
 		new Setting(legalSec)
-			.setName('Long vacations (8 hours a day)')
-			.setDesc('One period per line, such as 2026-08-01~2026-09-30. These days are checked against 8 hours each instead of the 28-hour week; a week that mixes term and vacation days counts all its hours toward 28. Use the dates in your school calendar; days you simply have no class do not count.')
+			.setName(tr('Long vacations (8 hours a day)', '长假（每天 8 小时）'))
+			.setDesc(tr('One period per line, such as 2026-08-01~2026-09-30. These days are checked against 8 hours each instead of the 28-hour week; a week that mixes term and vacation days counts all its hours toward 28. Use the dates in your school calendar; days you simply have no class do not count.', '每行一段，例如 2026-08-01~2026-09-30。这些日子按每天 8 小时检查，不按每周 28 小时；学期日和长假日混在一起的一周，全部工时都算进 28 小时。请按学校校历填写，只是没课的日子不算长假。'))
 			.addTextArea(text => text
 				.setPlaceholder('2026-08-01~2026-09-30')
 				.setValue((this.plugin.settings.vacationPeriods || []).join('\n'))
@@ -468,11 +469,11 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(legalSec).setName('Overtime and leave').setHeading();
+		new Setting(legalSec).setName(tr('Overtime and leave', '加班与休假')).setHeading();
 
 		new Setting(legalSec)
-			.setName('Overtime rate')
-			.setDesc('Multiplier for work over 8 hours a day or 40 hours a week. The legal minimum is 1.25.')
+			.setName(tr('Overtime rate', '加班费率'))
+			.setDesc(tr('Multiplier for work over 8 hours a day or 40 hours a week. The legal minimum is 1.25.', '每天超过 8 小时或每周超过 40 小时部分的倍率。法定最低 1.25。'))
 			.addText(text => text
 				.setValue(this.plugin.settings.overtimeRate.toString())
 				.onChange(async (value) => {
@@ -481,8 +482,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(legalSec)
-			.setName('Paid leave balance')
-			.setDesc('Days of paid leave (有給休暇) you have left.')
+			.setName(tr('Paid leave balance', '剩余带薪假'))
+			.setDesc(tr('Days of paid leave (有給休暇) you have left.', '还剩几天带薪假（有給休暇）。'))
 			.addText(text => text
 				.setValue(this.plugin.settings.paidLeaveBalance.toString())
 				.onChange(async (value) => {

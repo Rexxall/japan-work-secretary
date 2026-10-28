@@ -1,4 +1,5 @@
 import { ItemView, WorkspaceLeaf, Notice, Menu, requestUrl, Modal, App, setIcon, moment } from 'obsidian';
+import { tr } from './i18n';
 import JapanWorkSecretaryPlugin, { errorMessage } from './main';
 import { HoursTracker, parseVacationPeriods } from './hoursTracker';
 import { WageCalculator } from './wageCalculator';
@@ -47,7 +48,7 @@ export class DashboardView extends ItemView {
 	}
 
 	getDisplayText() {
-		return 'Work dashboard';
+		return tr('Work dashboard', '打工面板');
 	}
 
 	async onOpen() {
@@ -443,18 +444,20 @@ export class DashboardView extends ItemView {
         headMain.createEl('h2', {
             cls: 'ap-title',
             text: this.viewMode === 'month'
-                ? this.currentViewDate.format('MMMM YYYY')
-                : `Week of ${this.currentViewDate.clone().startOf('isoWeek').format('MMM D')}`
+                ? this.currentViewDate.format(tr('MMMM YYYY', 'YYYY年M月'))
+                : tr(`Week of ${this.currentViewDate.clone().startOf('isoWeek').format('MMM D')}`, `${this.currentViewDate.clone().startOf('isoWeek').format('M月D日')}起的一周`)
         });
         headMain.createDiv({
             cls: 'ap-sub',
-            text: this.isPayrollView ? `Work month ${activePeriod.label}` : 'Calendar month'
+            text: this.isPayrollView ? tr(`Work month ${activePeriod.label}`, `工资月 ${activePeriod.label}`) : tr('Calendar month', '自然月')
         });
 
         const actions = head.createDiv({ cls: 'ap-head-actions' });
-        const prevBtn = actions.createEl('button', { text: '‹', cls: 'jws-icon-btn', attr: { 'aria-label': 'Previous' } });
-        const todayBtn = actions.createEl('button', { text: 'Today' });
-        const nextBtn = actions.createEl('button', { text: '›', cls: 'jws-icon-btn', attr: { 'aria-label': 'Next' } });
+        const prevBtn = actions.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': tr('Previous', '上一页') } });
+        setIcon(prevBtn, 'chevron-left');
+        const todayBtn = actions.createEl('button', { text: tr('Today', '今天') });
+        const nextBtn = actions.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': tr('Next', '下一页') } });
+        setIcon(nextBtn, 'chevron-right');
         prevBtn.onClickEvent(() => {
             this.currentViewDate.subtract(1, this.viewMode === 'month' ? 'month' : 'week');
             this.render();
@@ -468,7 +471,8 @@ export class DashboardView extends ItemView {
             this.selectedDate = moment();
             this.render();
         });
-        const shareBtn = actions.createEl('button', { text: 'Share', attr: { title: 'Export this schedule as text or image' } });
+        const shareBtn = actions.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': tr('Share or export', '分享或导出') } });
+        setIcon(shareBtn, 'share');
         shareBtn.onClickEvent(() => {
             const period = this.getPeriodForDate(this.currentViewDate);
             new ShiftShareModal(
@@ -480,57 +484,21 @@ export class DashboardView extends ItemView {
                 this.plugin
             ).open();
         });
-        const addBtn = actions.createEl('button', { text: 'Add shift', cls: 'mod-cta' });
+        // Pay period and calendar sync are set once and rarely changed, so they live in this menu.
+        const moreBtn = actions.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': tr('Pay period and calendar sync', '工资口径与日历同步') } });
+        setIcon(moreBtn, 'more-horizontal');
+        moreBtn.onClickEvent(event => this.openMoreMenu(event));
+        const addBtn = actions.createEl('button', { text: tr('Add shift', '加班次'), cls: 'mod-cta' });
         addBtn.onClickEvent(() => {
             new QuickAddShiftModal(this.app, this.selectedDate.format('YYYY-MM-DD'), this.plugin, () => this.render(), (a, b) => this.getShiftsInRange(a, b)).open();
         });
 
         const toolbar = rootEl.createDiv({ cls: 'jws-toolbar' });
         this.segmented(toolbar, [
-            { label: 'Overview', active: this.activeDashboardTab === 'calendar', onClick: () => { this.activeDashboardTab = 'calendar'; } },
-            { label: 'Manage', active: this.activeDashboardTab === 'management', onClick: () => { this.activeDashboardTab = 'management'; } }
+            { label: tr('Overview', '总览'), active: this.activeDashboardTab === 'calendar', onClick: () => { this.activeDashboardTab = 'calendar'; } },
+            { label: tr('Manage', '管理'), active: this.activeDashboardTab === 'management', onClick: () => { this.activeDashboardTab = 'management'; } }
         ]);
-        this.segmented(toolbar, [
-            { label: 'Month', active: this.viewMode === 'month', onClick: () => { this.viewMode = 'month'; } },
-            { label: 'Week', active: this.viewMode === 'week', onClick: () => { this.viewMode = 'week'; } }
-        ]);
-        this.segmented(toolbar, [
-            { label: 'Natural', active: !this.isPayrollView, title: 'Calendar month', onClick: () => { this.isPayrollView = false; } },
-            { label: 'Payroll', active: this.isPayrollView, title: `Payroll cycle from the ${this.plugin.settings.payrollStartDay}th`, onClick: () => { this.isPayrollView = true; } }
-        ]);
-
-        // Calendar sync modes
-        const syncGroup = toolbar.createDiv({ cls: 'jws-sync' });
-        syncGroup.createSpan({ cls: 'ap-muted', text: 'Sync' });
-        const syncButtons: HTMLButtonElement[] = [];
-        const runSync = async (action: () => Promise<unknown>) => {
-            if (this.plugin.isCalendarSyncRunning()) {
-                new Notice('Calendar sync is already running.');
-                return;
-            }
-            syncButtons.forEach(button => button.disabled = true);
-            try {
-                await action();
-            } finally {
-                this.render();
-            }
-        };
-        const smartSyncBtn = syncGroup.createEl('button', { text: 'Smart', attr: { title: 'Sync only new or changed shifts (default)' } });
-        syncButtons.push(smartSyncBtn);
-        smartSyncBtn.onClickEvent(() => void runSync(() => this.plugin.smartSyncCalendar()));
-        const rangeSyncBtn = syncGroup.createEl('button', { text: 'Range', attr: { title: 'Smart sync the visible week, month, or payroll period' } });
-        syncButtons.push(rangeSyncBtn);
-        rangeSyncBtn.onClickEvent(() => void runSync(() => {
-            const period = this.getVisibleSyncPeriod();
-            return this.plugin.syncCalendarRange(
-                period.start.format('YYYY-MM-DD'),
-                period.end.format('YYYY-MM-DD'),
-                period.label
-            );
-        }));
-        const fullSyncBtn = syncGroup.createEl('button', { text: 'Full', attr: { title: 'Force reconciliation of all saved shifts plus the recurring-shift horizon' } });
-        syncButtons.push(fullSyncBtn);
-        fullSyncBtn.onClickEvent(() => void runSync(() => this.plugin.syncAllShifts()));
+        if (this.plugin.isCalendarSyncRunning()) toolbar.createSpan({ cls: 'ap-pill is-accent', text: tr('Syncing calendar…', '日历同步中…') });
 
         const contentWrapper = rootEl.createDiv({ cls: 'jws-body' });
 
@@ -540,18 +508,21 @@ export class DashboardView extends ItemView {
 
             const stats = contentWrapper.createDiv({ cls: 'jws-stats' });
 
-            const hoursCard = stats.createDiv({ cls: 'ap-card' });
-            hoursCard.createDiv({ cls: 'ap-label', text: this.isPayrollView ? 'Hours this work month' : 'Hours this month' });
-            const hoursValue = hoursCard.createDiv();
+            // Hours and pay for the period, side by side in one card.
+            const summary = stats.createDiv({ cls: 'ap-card jws-summary' });
+            summary.createDiv({ cls: 'ap-label', text: this.isPayrollView ? tr('This work month', '本工资月') : tr('This month', '本月') });
+            const figures = summary.createDiv({ cls: 'ap-stats jws-summary-stats' });
+            const hoursStat = figures.createDiv({ cls: 'ap-stat' });
+            hoursStat.createDiv({ cls: 'ap-stat-label', text: tr('Hours', '工时') });
+            const hoursValue = hoursStat.createDiv();
             hoursValue.createSpan({ cls: 'ap-stat-value', text: String(monthTotalHours) });
             hoursValue.createSpan({ cls: 'ap-stat-unit', text: 'h' });
-            hoursCard.createDiv({ cls: 'ap-cap', text: `${currentShifts.length} shift${currentShifts.length === 1 ? '' : 's'}` });
-
-            const wageCard = stats.createDiv({ cls: 'ap-card' });
-            wageCard.createDiv({ cls: 'ap-label', text: 'Estimated wage' });
-            wageCard.createDiv({ cls: 'ap-stat-value', text: `¥${monthlyWage.toLocaleString()}` });
+            hoursStat.createDiv({ cls: 'ap-cap', text: tr(`${currentShifts.length} shift${currentShifts.length === 1 ? '' : 's'}`, `${currentShifts.length} 个班次`) });
+            const wageStat = figures.createDiv({ cls: 'ap-stat' });
+            wageStat.createDiv({ cls: 'ap-stat-label', text: tr('Estimated wage', '预计工资') });
+            wageStat.createDiv({ cls: 'ap-stat-value', text: `¥${monthlyWage.toLocaleString()}` });
             const rmbRate = this.getRmbExchangeRateForPeriod(calcEnd);
-            wageCard.createDiv({
+            wageStat.createDiv({
                 cls: 'ap-cap',
                 text: `≈ ¥${Math.floor(monthlyWage * rmbRate.rate).toLocaleString()} RMB`,
                 attr: { title: rmbRate.title }
@@ -561,6 +532,12 @@ export class DashboardView extends ItemView {
             this.renderIncomeAnalyticsCard(stats, calcStart, calcEnd, activePeriod.label, monthlyWage, currentShifts);
 
             const calendarSection = contentWrapper.createDiv({ cls: 'jws-calendar-section' });
+            const calendarHead = calendarSection.createDiv({ cls: 'jws-cal-head' });
+            calendarHead.createDiv({ cls: 'ap-label', text: tr('Shifts', '排班') });
+            this.segmented(calendarHead, [
+                { label: tr('Month', '月'), active: this.viewMode === 'month', onClick: () => { this.viewMode = 'month'; } },
+                { label: tr('Week', '周'), active: this.viewMode === 'week', onClick: () => { this.viewMode = 'week'; } }
+            ]);
             if (this.viewMode === 'month') {
                 this.renderCalendar(calendarSection, peak);
             } else {
@@ -577,15 +554,46 @@ export class DashboardView extends ItemView {
             this.renderTaxStrategyCard(summaryGrid, monthlyWage, this.annualWage);
             this.renderLegalStatusCard(summaryGrid);
 
-            contentWrapper.createDiv({ cls: 'ap-label jws-section-label', text: 'Shift management' });
+            contentWrapper.createDiv({ cls: 'ap-label jws-section-label', text: tr('Shift management', '班次管理') });
             const mgmtGrid = contentWrapper.createDiv({ cls: 'jws-grid' });
             const formCard = mgmtGrid.createDiv({ cls: 'ap-card' });
             this.renderLeftManagementColumn(formCard);
             const recurCard = mgmtGrid.createDiv({ cls: 'ap-card' });
-            recurCard.createDiv({ cls: 'ap-label', text: 'Weekly pattern · batch add' });
+            recurCard.createDiv({ cls: 'ap-label', text: tr('Weekly pattern · batch add', '每周固定班 · 批量添加') });
             this.renderRightManagementColumn(recurCard);
         }
 	}
+
+    /** Pay period (calendar month or payroll cycle) and the three calendar sync modes. */
+    private openMoreMenu(event: MouseEvent) {
+        const menu = new Menu();
+        const startDay = this.plugin.settings.payrollStartDay || 21;
+        menu.addItem(item => item.setTitle(tr('Count by calendar month', '按自然月统计')).setChecked(!this.isPayrollView)
+            .onClick(() => { this.isPayrollView = false; this.render(); }));
+        menu.addItem(item => item.setTitle(tr(`Count by work month (from day ${startDay})`, `按工资月统计（每月 ${startDay} 日起）`)).setChecked(this.isPayrollView)
+            .onClick(() => { this.isPayrollView = true; this.render(); }));
+        menu.addSeparator();
+        const runSync = (action: () => Promise<unknown>) => {
+            if (this.plugin.isCalendarSyncRunning()) {
+                new Notice(tr('Calendar sync is already running.', '日历正在同步。'));
+                return;
+            }
+            const done = action();
+            this.render();
+            void done.finally(() => this.render());
+        };
+        const busy = this.plugin.isCalendarSyncRunning();
+        menu.addItem(item => item.setTitle(tr('Sync new and changed shifts', '同步新增和改动的班次')).setIcon('refresh-cw').setDisabled(busy)
+            .onClick(() => runSync(() => this.plugin.smartSyncCalendar())));
+        menu.addItem(item => item.setTitle(tr('Sync the period shown', '同步当前显示的这段')).setIcon('calendar-range').setDisabled(busy)
+            .onClick(() => runSync(() => {
+                const period = this.getVisibleSyncPeriod();
+                return this.plugin.syncCalendarRange(period.start.format('YYYY-MM-DD'), period.end.format('YYYY-MM-DD'), period.label);
+            })));
+        menu.addItem(item => item.setTitle(tr('Rewrite all shifts in the calendar', '在日历里重写全部班次')).setIcon('calendar-sync').setDisabled(busy)
+            .onClick(() => runSync(() => this.plugin.syncAllShifts())));
+        menu.showAtMouseEvent(event);
+    }
 
     private segmented(parent: HTMLElement, options: { label: string, active: boolean, title?: string, onClick: () => void }[]) {
         const seg = parent.createDiv({ cls: 'ap-seg' });
@@ -615,7 +623,7 @@ export class DashboardView extends ItemView {
         const tone = result.isOverLimit ? 'is-danger' : ratio >= 0.85 ? 'is-warn' : 'is-good';
 
         const card = parent.createDiv({ cls: `ap-card jws-peak-card ${result.isOverLimit ? 'is-danger' : ratio >= 0.85 ? 'is-warn' : ''}`.trim() });
-        card.createDiv({ cls: 'ap-label', text: `Peak 7 days · around ${this.selectedDate.format('M/D')}` });
+        card.createDiv({ cls: 'ap-label', text: tr(`Peak 7 days · around ${this.selectedDate.format('M/D')}`, `最忙的 7 天 · ${this.selectedDate.format('M/D')} 前后`) });
         const value = card.createDiv();
         value.createSpan({ cls: 'ap-stat-value', text: String(result.totalHoursLast7Days) });
         value.createSpan({ cls: 'ap-stat-unit', text: '/ 28 h' });
@@ -625,8 +633,8 @@ export class DashboardView extends ItemView {
         split.createSpan({ text: `${moment(result.peakWindowStart).format('M/D ddd')} – ${moment(result.peakWindowEnd).format('M/D ddd')}` });
         split.createSpan({
             text: result.isOverLimit
-                ? `over by ${Math.round((result.totalHoursLast7Days - 28) * 100) / 100} h`
-                : `${result.remainingHours} h left`
+                ? tr(`over by ${Math.round((result.totalHoursLast7Days - 28) * 100) / 100} h`, `超出 ${Math.round((result.totalHoursLast7Days - 28) * 100) / 100} 小时`)
+                : tr(`${result.remainingHours} h left`, `还剩 ${result.remainingHours} 小时`)
         });
 
         const bars = card.createDiv({ cls: 'jws-day-bars', attr: { 'aria-hidden': 'true' } });
@@ -647,7 +655,7 @@ export class DashboardView extends ItemView {
         if (result.mixesVacation && result.totalHoursLast7Days > 0) {
             appendMixedWeekNote(card.createDiv({ cls: `ap-notice ${result.isOverLimit ? 'is-danger' : 'is-warn'} jws-card-note` }).createDiv());
         } else if (tracker.isVacationDay(selected)) {
-            card.createDiv({ cls: 'ap-notice is-good jws-card-note', text: 'Long break: up to 8 h per day.' });
+            card.createDiv({ cls: 'ap-notice is-good jws-card-note', text: tr('Long break: up to 8 h per day.', '长假期间：每天最多 8 小时。') });
         }
         const vacationOver = tracker.findVacationDaysOverLimit(shiftsForCheck);
         if (vacationOver.length > 0) {
@@ -674,7 +682,7 @@ export class DashboardView extends ItemView {
         currentShifts: Shift[]
     ) {
         const card = container.createDiv({ cls: 'ap-card jws-income-card' });
-        card.createDiv({ cls: 'ap-label', text: 'Income' });
+        card.createDiv({ cls: 'ap-label', text: tr('Income', '收入') });
 
         const previousPeriod = this.getPreviousPeriod(calcStart, calcEnd);
         const previousWage = this.getMonthlyWage(previousPeriod.start, previousPeriod.end);
@@ -684,7 +692,7 @@ export class DashboardView extends ItemView {
             ? `${delta >= 0 ? '+' : ''}${Math.round((delta / previousWage) * 100)}%`
             : (monthlyWage > 0 ? 'new' : '0%');
         const comparison = card.createDiv({ cls: 'ap-split jws-income-delta' });
-        comparison.createSpan({ text: 'vs previous period' });
+        comparison.createSpan({ text: tr('vs previous period', '与上期相比') });
         comparison.createSpan({ cls: delta >= 0 ? 'is-up' : 'is-down', text: `${deltaLabel} (${percentLabel})`, attr: { title: displayLabel } });
 
         const trendRows: { label: string, wage: number }[] = [];
@@ -712,7 +720,7 @@ export class DashboardView extends ItemView {
         const storeRows = Array.from(storeTotals.entries()).sort((a, b) => b[1] - a[1]);
         const storeTotal = storeRows.reduce((sum, [, wage]) => sum + wage, 0);
         if (storeRows.length === 0 || storeTotal === 0) {
-            card.createDiv({ text: 'No store income in this period', cls: 'ap-cap' });
+            card.createDiv({ text: tr('No store income in this period', '本期没有收入'), cls: 'ap-cap' });
             return;
         }
         const shareBar = card.createDiv({ cls: 'jws-store-share' });
@@ -732,8 +740,8 @@ export class DashboardView extends ItemView {
 
     renderCalendar(parent: HTMLElement, peak?: { start: string, end: string, hours: number, isOverLimit: boolean }) {
         const calendarGrid = parent.createDiv({ cls: 'jws-cal' });
-        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        days.forEach(d => calendarGrid.createDiv({ cls: 'jws-cal-dow', text: d }));
+        const short = moment.weekdaysShort();
+        [1, 2, 3, 4, 5, 6, 0].forEach(i => calendarGrid.createDiv({ cls: 'jws-cal-dow', text: short[i] }));
 
         const startOfMonth = this.currentViewDate.clone().startOf('month');
         const endOfMonth = this.currentViewDate.clone().endOf('month');
@@ -788,9 +796,9 @@ export class DashboardView extends ItemView {
                     cls: `jws-shift ${getStoreColorClass(this.plugin.settings, s.storeName)}${isRecurring ? ' is-recurring' : ''}${s.isPaidLeave ? ' is-paid-leave' : ''}`
                 });
                 shiftEl.createSpan({ cls: 'jws-shift-store', text: getStoreShortName(this.plugin.settings, s.storeName) });
-                shiftEl.createSpan({ cls: 'jws-shift-time', text: s.isPaidLeave ? 'Paid leave' : `${s.startTime}–${s.endTime}` });
-                if (s.isSynced) shiftEl.createSpan({ cls: 'jws-shift-synced', attr: { 'aria-label': 'Synced to calendar' } });
-                shiftEl.setAttribute('title', `${s.storeName}\n${s.startTime} - ${s.endTime}\nEst. wage: ¥${s.calculatedWage}${s.isSynced ? '\nSynced to calendar' : ''}`);
+                shiftEl.createSpan({ cls: 'jws-shift-time', text: s.isPaidLeave ? tr('Paid leave', '带薪假') : `${s.startTime}–${s.endTime}` });
+                if (s.isSynced) shiftEl.createSpan({ cls: 'jws-shift-synced', attr: { 'aria-label': tr('Synced to calendar', '已同步到日历') } });
+                shiftEl.setAttribute('title', `${s.storeName}\n${s.startTime} - ${s.endTime}\n${tr('Est. wage', '预计工资')}: ¥${s.calculatedWage}${s.isSynced ? `\n${tr('Synced to calendar', '已同步到日历')}` : ''}`);
 
                 shiftEl.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
@@ -857,7 +865,7 @@ export class DashboardView extends ItemView {
         while (curr.isSameOrBefore(endOfWeek, 'day')) {
             const capturedDate = curr.clone();
             const column = weekGrid.createDiv({ cls: 'jws-week-col' });
-            column.createDiv({ cls: 'jws-cal-dow', text: capturedDate.format('ddd D') });
+            column.createDiv({ cls: 'jws-cal-dow', text: capturedDate.format(tr('ddd D', 'ddd D日')) });
 
             const cell = column.createDiv({ cls: 'jws-day jws-week-cell' });
             if (capturedDate.isSame(this.selectedDate, 'day')) cell.addClass('is-selected');
@@ -875,8 +883,8 @@ export class DashboardView extends ItemView {
                     cls: `jws-shift ${getStoreColorClass(this.plugin.settings, s.storeName)}${isRecurring ? ' is-recurring' : ''}${s.isPaidLeave ? ' is-paid-leave' : ''}`
                 });
                 shiftEl.createSpan({ cls: 'jws-shift-store', text: getStoreShortName(this.plugin.settings, s.storeName) });
-                shiftEl.createSpan({ cls: 'jws-shift-time', text: s.isPaidLeave ? `Paid leave (${s.storeName})` : `${s.startTime}–${s.endTime}` });
-                shiftEl.setAttribute('title', `${s.storeName}\nEst. wage: ¥${s.calculatedWage}`);
+                shiftEl.createSpan({ cls: 'jws-shift-time', text: s.isPaidLeave ? `${tr('Paid leave', '带薪假')} (${s.storeName})` : `${s.startTime}–${s.endTime}` });
+                shiftEl.setAttribute('title', `${s.storeName}\n${tr('Est. wage', '预计工资')}: ¥${s.calculatedWage}`);
                 shiftEl.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
                     this.handleShiftContextMenu(e, s);
@@ -894,18 +902,18 @@ export class DashboardView extends ItemView {
 
     renderLeftManagementColumn(parent: HTMLElement) {
         const details = parent.createEl('details', { cls: 'jws-details' });
-        details.createEl('summary', { cls: 'ap-label', text: 'Add a single shift' });
+        details.createEl('summary', { cls: 'ap-label', text: tr('Add a single shift', '加一个班次') });
 
         const form = details.createDiv({ cls: 'jws-form' });
-        const dateInput = field(form, 'Date').createEl('input', { attr: { type: 'date', value: moment().format('YYYY-MM-DD') } });
+        const dateInput = field(form, tr('Date', '日期')).createEl('input', { attr: { type: 'date', value: moment().format('YYYY-MM-DD') } });
         const timeRow = form.createDiv({ cls: 'jws-form-row' });
-        const startInput = field(timeRow, 'Start').createEl('input', { attr: { type: 'time', value: '17:00' } });
-        const endInput = field(timeRow, 'End').createEl('input', { attr: { type: 'time', value: '22:00' } });
-        const storeSelect = field(form, 'Store').createEl('select', { cls: 'dropdown' });
+        const startInput = field(timeRow, tr('Start', '开始')).createEl('input', { attr: { type: 'time', value: '17:00' } });
+        const endInput = field(timeRow, tr('End', '结束')).createEl('input', { attr: { type: 'time', value: '22:00' } });
+        const storeSelect = field(form, tr('Store', '店铺')).createEl('select', { cls: 'dropdown' });
         this.populateStoreSelect(storeSelect);
-        const breakInput = field(form, 'Break taken (minutes)').createEl('input', { attr: { type: 'number', min: '0', placeholder: 'Not entered' } });
+        const breakInput = field(form, tr('Break taken (minutes)', '休息（分钟）')).createEl('input', { attr: { type: 'number', min: '0', placeholder: tr('Not entered', '未填') } });
 
-        const btn = form.createEl('button', { cls: 'mod-cta', text: 'Add to records' });
+        const btn = form.createEl('button', { cls: 'mod-cta', text: tr('Add to records', '加入记录') });
         btn.onClickEvent(async () => {
             if (!this.plugin.ensureScheduleMutationAllowed()) return;
             const date = dateInput.value;
@@ -919,7 +927,7 @@ export class DashboardView extends ItemView {
                 return (start < s.endTime) && (end > s.startTime);
             });
             if (hasOverlap) {
-                new Notice('This overlaps an existing shift on the same day.');
+                new Notice(tr('This overlaps an existing shift on the same day.', '和当天已有的班次时间重叠。'));
                 return;
             }
 
@@ -938,24 +946,24 @@ export class DashboardView extends ItemView {
             };
             this.plugin.shiftData.shifts.push(newShift);
             await this.plugin.saveDataStore();
-            new Notice('Shift added.');
+            new Notice(tr('Shift added.', '已加班次。'));
 
             try {
                 await this.plugin.syncShiftToCalendar(newShift);
-                new Notice('Synced to calendar.');
+                new Notice(tr('Synced to calendar.', '已同步到日历。'));
             } catch (e) {
-                new Notice(`Calendar sync failed: ${errorMessage(e)}`);
+                new Notice(tr(`Calendar sync failed: ${errorMessage(e)}`, `日历同步失败：${errorMessage(e)}`));
             }
 
             this.render();
         });
 
-        parent.createDiv({ cls: 'ap-label jws-section-label', text: 'Recurring shifts' });
+        parent.createDiv({ cls: 'ap-label jws-section-label', text: tr('Recurring shifts', '固定班次') });
         const list = parent.createDiv({ cls: 'jws-recurring-list' });
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const days = moment.weekdaysShort();
 
         if (this.plugin.shiftData.recurringShifts.length === 0) {
-            list.createDiv({ text: 'No recurring shifts set.', cls: 'ap-cap' });
+            list.createDiv({ text: tr('No recurring shifts set.', '还没有固定班次。'), cls: 'ap-cap' });
         }
 
         this.plugin.shiftData.recurringShifts.forEach(rs => {
@@ -977,8 +985,8 @@ export class DashboardView extends ItemView {
                 const endDateIn = row3.createEl('input', { attr: { type: 'date', value: rs.endDate || '' } });
 
                 const editActions = editor.createDiv({ cls: 'ap-actions' });
-                const cancelBtn = editActions.createEl('button', { text: 'Cancel' });
-                const saveBtn = editActions.createEl('button', { text: 'Save', cls: 'mod-cta' });
+                const cancelBtn = editActions.createEl('button', { text: tr('Cancel', '取消') });
+                const saveBtn = editActions.createEl('button', { text: tr('Save', '保存'), cls: 'mod-cta' });
                 saveBtn.onClickEvent(async () => {
                     if (!this.plugin.ensureScheduleMutationAllowed()) return;
                     rs.dayOfWeek = parseInt(daySel.value);
@@ -995,13 +1003,13 @@ export class DashboardView extends ItemView {
             } else {
                 item.createSpan({ cls: `ap-pill jws-store-chip ${getStoreColorClass(this.plugin.settings, rs.storeName)}`, text: getStoreShortName(this.plugin.settings, rs.storeName) });
                 item.createSpan({ cls: 'ap-grow ap-num', text: `${days[rs.dayOfWeek]} ${rs.startTime}–${rs.endTime}` });
-                const editIcon = item.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': 'Edit recurring shift' } });
+                const editIcon = item.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': tr('Edit recurring shift', '编辑固定班次') } });
                 setIcon(editIcon, 'pencil');
-                const delBtn = item.createEl('button', { cls: 'clickable-icon jws-danger-icon', attr: { 'aria-label': 'Delete recurring shift' } });
+                const delBtn = item.createEl('button', { cls: 'clickable-icon jws-danger-icon', attr: { 'aria-label': tr('Delete recurring shift', '删除固定班次') } });
                 setIcon(delBtn, 'trash-2');
 
                 editIcon.onClickEvent(() => { this.editingRecurringId = rs.id; this.render(); });
-                armDelete(delBtn, 'Delete recurring shift', async () => {
+                armDelete(delBtn, tr('Delete recurring shift', '删除固定班次'), async () => {
                     if (!this.plugin.ensureScheduleMutationAllowed()) return;
                     this.plugin.shiftData.recurringShifts = this.plugin.shiftData.recurringShifts.filter(r => r.id !== rs.id);
                     await this.plugin.saveDataStore();
@@ -1015,7 +1023,7 @@ export class DashboardView extends ItemView {
         const addSection = parent.createDiv({ cls: 'add-recurring-section' });
         
         const gridWrapper = addSection.createDiv({ cls: 'weekly-pattern-grid' });
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const days = moment.weekdaysShort();
         
         days.forEach((dayName, i) => {
             const row = gridWrapper.createDiv({ cls: 'pattern-row' });
@@ -1045,12 +1053,14 @@ export class DashboardView extends ItemView {
         const seedWeekEnd = seedWeekStart.clone().add(6, 'days');
         const seedLabel = seedWeekStart.format('YYYY-MM-DD');
         const seedTemplateBtn = batchControls.createEl('button', {
-            text: `Build template from the ${seedLabel} week`,
+            text: tr(`Build template from the ${seedLabel} week`, `用 ${seedLabel} 那周生成模板`),
             cls: 'jws-small-btn'
         });
         seedTemplateBtn.onClickEvent(async () => {
             const count = await this.saveTemplateFromRange(seedWeekStart, seedWeekEnd, `${seedLabel} weekly pattern`);
-            new Notice(count > 0 ? `Saved ${seedLabel} weekly template (${count} shift pattern(s)).` : `No shifts found for ${seedLabel} to ${seedWeekEnd.format('YYYY-MM-DD')}.`);
+            new Notice(count > 0
+                ? tr(`Saved ${seedLabel} weekly template (${count} shift pattern(s)).`, `已存 ${seedLabel} 那周的模板（${count} 个班次）。`)
+                : tr(`No shifts found for ${seedLabel} to ${seedWeekEnd.format('YYYY-MM-DD')}.`, `${seedLabel} 到 ${seedWeekEnd.format('YYYY-MM-DD')} 没有班次。`));
             this.render();
         });
 
@@ -1058,7 +1068,7 @@ export class DashboardView extends ItemView {
             attr: {
                 type: 'text',
                 value: this.templateName,
-                placeholder: 'Template name',
+                placeholder: tr('Template name', '模板名称'),
             }
         });
         templateNameInput.oninput = () => this.templateName = templateNameInput.value || 'Regular weekly pattern';
@@ -1069,20 +1079,20 @@ export class DashboardView extends ItemView {
         storeSel.onchange = () => this.weeklyPatternStoreName = storeSel.value;
 
         const dateRow = batchControls.createDiv({ cls: 'batch-date-row' });
-        const startD = dateRow.createEl('input', { attr: { type: 'date', value: this.batchStartDate, placeholder: 'Start date' } });
-        const endD = dateRow.createEl('input', { attr: { type: 'date', value: this.batchEndDate, placeholder: 'End date' } });
+        const startD = dateRow.createEl('input', { attr: { type: 'date', value: this.batchStartDate, placeholder: tr('Start date', '开始日期') } });
+        const endD = dateRow.createEl('input', { attr: { type: 'date', value: this.batchEndDate, placeholder: tr('End date', '结束日期') } });
         
         startD.onchange = () => this.batchStartDate = startD.value;
         endD.onchange = () => this.batchEndDate = endD.value;
 
         const actionRow = batchControls.createDiv({ cls: 'template-action-row' });
-        const saveTemplateBtn = actionRow.createEl('button', { text: 'Save template' });
-        const addBtn = actionRow.createEl('button', { text: 'Create rules', cls: 'mod-cta' });
+        const saveTemplateBtn = actionRow.createEl('button', { text: tr('Save template', '存为模板') });
+        const addBtn = actionRow.createEl('button', { text: tr('Create rules', '生成规则'), cls: 'mod-cta' });
 
         saveTemplateBtn.onClickEvent(async () => {
             const patterns = this.getActiveTemplatePatterns(storeSel.value);
             if (patterns.length === 0) {
-                new Notice('Please select at least one day.');
+                new Notice(tr('Please select at least one day.', '请至少选一天。'));
                 return;
             }
 
@@ -1097,29 +1107,29 @@ export class DashboardView extends ItemView {
             });
 
             await this.plugin.saveDataStore();
-            new Notice(`Saved template with ${patterns.length} day(s).`);
+            new Notice(tr(`Saved template with ${patterns.length} day(s).`, `已存模板，共 ${patterns.length} 天。`));
             this.render();
         });
 
         addBtn.onClickEvent(async () => {
             const patterns = this.getActiveTemplatePatterns(storeSel.value);
             if (patterns.length === 0) {
-                new Notice('Please select at least one day.');
+                new Notice(tr('Please select at least one day.', '请至少选一天。'));
                 return;
             }
 
             const added = await this.createRecurringRulesFromPatterns(patterns, this.batchStartDate, this.batchEndDate);
             if (added < 0) return;
-            new Notice(added > 0 ? `Added ${added} recurring rule(s).` : 'No new rules added; matching rules already exist.');
+            new Notice(added > 0 ? tr(`Added ${added} recurring rule(s).`, `新增 ${added} 条固定规则。`) : tr('No new rules added; matching rules already exist.', '没有新增规则，相同的规则已存在。'));
             this.render();
         });
 
         const templates = this.plugin.shiftData.shiftTemplates || [];
         const templateList = addSection.createDiv({ cls: 'template-list' });
-        templateList.createDiv({ cls: 'ap-label jws-section-label', text: 'Saved templates' });
+        templateList.createDiv({ cls: 'ap-label jws-section-label', text: tr('Saved templates', '已存模板') });
 
         if (templates.length === 0) {
-            templateList.createDiv({ text: 'No templates saved yet.', cls: 'ap-cap' });
+            templateList.createDiv({ text: tr('No templates saved yet.', '还没有模板。'), cls: 'ap-cap' });
             return;
         }
 
@@ -1133,11 +1143,11 @@ export class DashboardView extends ItemView {
             info.createDiv({ text: summary, cls: 'ap-cap' });
 
             const actions = row.createDiv({ cls: 'template-item-actions' });
-            const loadBtn = actions.createEl('button', { text: 'Load' });
-            const applyBtn = actions.createEl('button', { text: 'Range' });
-            const thisMonthBtn = actions.createEl('button', { text: 'This work month' });
-            const nextMonthBtn = actions.createEl('button', { text: 'Next Work Month' });
-            const deleteBtn = actions.createEl('button', { cls: 'clickable-icon jws-danger-icon', attr: { 'aria-label': 'Delete template' } });
+            const loadBtn = actions.createEl('button', { text: tr('Load', '载入') });
+            const applyBtn = actions.createEl('button', { text: tr('Range', '按日期范围') });
+            const thisMonthBtn = actions.createEl('button', { text: tr('This work month', '本工资月') });
+            const nextMonthBtn = actions.createEl('button', { text: tr('Next Work Month', '下个工资月') });
+            const deleteBtn = actions.createEl('button', { cls: 'clickable-icon jws-danger-icon', attr: { 'aria-label': tr('Delete template', '删除模板') } });
             setIcon(deleteBtn, 'trash-2');
 
             loadBtn.onClickEvent(() => {
@@ -1149,7 +1159,7 @@ export class DashboardView extends ItemView {
             applyBtn.onClickEvent(async () => {
                 const added = await this.createRecurringRulesFromPatterns(template.patterns, this.batchStartDate, this.batchEndDate);
                 if (added < 0) return;
-                new Notice(added > 0 ? `Applied template: ${added} recurring rule(s).` : 'No new rules added; matching rules already exist.');
+                new Notice(added > 0 ? tr(`Applied template: ${added} recurring rule(s).`, `已套用模板：${added} 条固定规则。`) : tr('No new rules added; matching rules already exist.', '没有新增规则，相同的规则已存在。'));
                 this.render();
             });
 
@@ -1157,7 +1167,7 @@ export class DashboardView extends ItemView {
                 const period = this.getWorkMonthPeriod(this.currentViewDate);
                 const added = await this.applyTemplateToWorkMonth(template.patterns, period);
                 if (added < 0) return;
-                new Notice(added > 0 ? `Scheduled ${period.label} with ${added} recurring rule(s).` : `${period.label} already has matching rules.`);
+                new Notice(added > 0 ? tr(`Scheduled ${period.label} with ${added} recurring rule(s).`, `已为 ${period.label} 排好 ${added} 条固定规则。`) : tr(`${period.label} already has matching rules.`, `${period.label} 已有相同的规则。`));
                 this.currentViewDate = period.start.clone();
                 this.selectedDate = period.start.clone();
                 this.activeDashboardTab = 'calendar';
@@ -1168,14 +1178,14 @@ export class DashboardView extends ItemView {
                 const period = this.getNextWorkMonthPeriod(this.currentViewDate);
                 const added = await this.applyTemplateToWorkMonth(template.patterns, period);
                 if (added < 0) return;
-                new Notice(added > 0 ? `Scheduled ${period.label} with ${added} recurring rule(s).` : `${period.label} already has matching rules.`);
+                new Notice(added > 0 ? tr(`Scheduled ${period.label} with ${added} recurring rule(s).`, `已为 ${period.label} 排好 ${added} 条固定规则。`) : tr(`${period.label} already has matching rules.`, `${period.label} 已有相同的规则。`));
                 this.currentViewDate = period.start.clone();
                 this.selectedDate = period.start.clone();
                 this.activeDashboardTab = 'calendar';
                 this.render();
             });
 
-            armDelete(deleteBtn, `Delete template ${template.name}`, async () => {
+            armDelete(deleteBtn, tr(`Delete template ${template.name}`, `删除模板 ${template.name}`), async () => {
                 this.plugin.shiftData.shiftTemplates = templates.filter(t => t.id !== template.id);
                 await this.plugin.saveDataStore();
                 this.render();
@@ -1190,7 +1200,7 @@ export class DashboardView extends ItemView {
 
         if (isRecurring) {
             menu.addItem((item) => {
-                item.setTitle('Edit this occurrence only')
+                item.setTitle(tr('Edit this occurrence only', '只改这一次'))
                     .setIcon('pencil')
                     .onClick(async () => {
                         if (!this.plugin.ensureScheduleMutationAllowed()) return;
@@ -1222,7 +1232,7 @@ export class DashboardView extends ItemView {
                     });
             });
             menu.addItem((item) => {
-                item.setTitle('Delete this occurrence only')
+                item.setTitle(tr('Delete this occurrence only', '只删这一次'))
                     .setIcon('calendar-x')
                     .onClick(async () => {
                         if (!this.plugin.ensureScheduleMutationAllowed()) return;
@@ -1236,13 +1246,13 @@ export class DashboardView extends ItemView {
                             rs.exceptions.push(s.date);
                             rs.exceptions.sort();
                             await this.plugin.saveDataStore();
-                            new Notice(`Deleted only ${moment(s.date).format('MM/DD')} occurrence.`);
+                            new Notice(tr(`Deleted only ${moment(s.date).format('MM/DD')} occurrence.`, `只删了 ${moment(s.date).format('MM/DD')} 这一次。`));
                         }
                         this.render();
                     });
             });
             menu.addItem((item) => {
-                item.setTitle('Delete entire Recurring Rule')
+                item.setTitle(tr('Delete entire Recurring Rule', '删除整条固定规则'))
                     .setIcon('trash')
                     .onClick(async () => {
                         if (!this.plugin.ensureScheduleMutationAllowed()) return;
@@ -1255,7 +1265,7 @@ export class DashboardView extends ItemView {
             });
         } else {
             menu.addItem((item) => {
-                item.setTitle('Edit Shift')
+                item.setTitle(tr('Edit Shift', '编辑班次'))
                     .setIcon('pencil')
                     .onClick(() => {
                         const shift = this.plugin.shiftData.shifts.find(sh => sh.id === s.id);
@@ -1265,7 +1275,7 @@ export class DashboardView extends ItemView {
                     });
             });
             menu.addItem((item) => {
-                item.setTitle(s.isPaidLeave ? 'Unmark Paid Leave' : 'Mark as Paid Leave')
+                item.setTitle(s.isPaidLeave ? tr('Unmark paid leave', '取消带薪假') : tr('Mark as paid leave', '标为带薪假'))
                     .setIcon('check-circle')
                     .onClick(async () => {
                         const shift = this.plugin.shiftData.shifts.find(sh => sh.id === s.id);
@@ -1281,7 +1291,7 @@ export class DashboardView extends ItemView {
                     });
             });
             menu.addItem((item) => {
-                item.setTitle('Delete Shift')
+                item.setTitle(tr('Delete Shift', '删除班次'))
                     .setIcon('trash')
                     .onClick(async () => {
                         if (!this.plugin.ensureScheduleMutationAllowed()) return;
@@ -1291,7 +1301,7 @@ export class DashboardView extends ItemView {
                                 await this.plugin.deleteShiftFromCalendar(shift);
                             } catch (error) {
                                 console.error('Calendar delete failed.', error);
-                                new Notice('Calendar delete failed; local shift was still removed.');
+                                new Notice(tr('Calendar delete failed; local shift was still removed.', '日历里没能删掉，本地班次已删除。'));
                             }
                         }
                         this.plugin.shiftData.shifts = this.plugin.shiftData.shifts.filter(sh => sh.id !== s.id);
@@ -1379,15 +1389,15 @@ export class DashboardView extends ItemView {
     private renderTaxStrategyCard(container: HTMLElement, monthly: number, annual: number) {
         const card = container.createDiv({ cls: 'ap-card' });
         const headerRow = card.createDiv({ cls: 'jws-card-head' });
-        headerRow.createDiv({ cls: 'ap-label', text: 'Income alerts' });
-        const infoBtn = headerRow.createEl('button', { text: 'Rules', cls: 'jws-small-btn', attr: { title: 'Official sources for the 28-hour rule and income thresholds' } });
+        headerRow.createDiv({ cls: 'ap-label', text: tr('Income alerts', '收入提醒') });
+        const infoBtn = headerRow.createEl('button', { text: tr('Rules', '规则'), cls: 'jws-small-btn', attr: { title: tr('Official sources for the 28-hour rule and income thresholds', '28 小时规则和收入门槛的官方出处') } });
         infoBtn.onClickEvent(() => {
             new PolicyExplanationModal(this.plugin.app).open();
         });
 
         const alerts = (this.plugin.settings.incomeAlerts || []).filter(alert => alert.enabled && alert.amount > 0);
         if (alerts.length === 0) {
-            card.createDiv({ cls: 'ap-cap', text: 'No income alerts set. Add the amounts for this year in Settings → Income Alerts.' });
+            card.createDiv({ cls: 'ap-cap', text: tr('No income alerts set. Add the amounts for this year in Settings → Income Alerts.', '还没设收入提醒。到 设置 → 收入提醒 填今年的金额。') });
         }
         for (const alert of alerts) {
             const current = alert.period === 'annual' ? annual : monthly;
@@ -1417,15 +1427,15 @@ export class DashboardView extends ItemView {
 
     private renderLegalStatusCard(containerEl: HTMLElement) {
         const card = containerEl.createDiv({ cls: 'ap-card' });
-        card.createDiv({ cls: 'ap-label', text: 'Paid leave and overtime' });
+        card.createDiv({ cls: 'ap-label', text: tr('Paid leave and overtime', '带薪假和加班') });
 
         const leaveBalance = this.plugin.settings.paidLeaveBalance || 0;
         const usedLeave = this.plugin.shiftData.shifts.filter(s => s.isPaidLeave).length;
         const remainingLeave = leaveBalance - usedLeave;
         const leaveItem = card.createDiv({ cls: 'jws-meter-item' });
         const leaveTop = leaveItem.createDiv({ cls: 'ap-split jws-meter-top' });
-        leaveTop.createSpan({ text: 'Paid leave (有給休暇)' });
-        leaveTop.createSpan({ cls: 'ap-num', text: `${remainingLeave} / ${leaveBalance} days left` });
+        leaveTop.createSpan({ text: tr('Paid leave (有給休暇)', '带薪假（有給休暇）') });
+        leaveTop.createSpan({ cls: 'ap-num', text: tr(`${remainingLeave} / ${leaveBalance} days left`, `剩 ${remainingLeave} / ${leaveBalance} 天`) });
         const leaveMeter = leaveItem.createDiv({ cls: `ap-meter ${remainingLeave <= 1 ? 'is-danger' : 'is-good'}` });
         leaveMeter.createDiv({ cls: 'ap-meter-fill' }).setCssProps({ '--ap-value': `${leaveBalance > 0 ? Math.max(0, remainingLeave / leaveBalance) * 100 : 0}%` });
 
@@ -1434,17 +1444,17 @@ export class DashboardView extends ItemView {
         const totalHours = weekShifts.reduce((sum, s) => sum + s.calculatedHours, 0);
         const otItem = card.createDiv({ cls: 'jws-meter-item' });
         const otTop = otItem.createDiv({ cls: 'ap-split jws-meter-top' });
-        otTop.createSpan({ text: 'This week' });
+        otTop.createSpan({ text: tr('This week', '本周') });
         otTop.createSpan({ cls: 'ap-num', text: `${totalHours.toFixed(1)} / 40 h` });
         const otMeter = otItem.createDiv({ cls: `ap-meter ${totalHours > 40 ? 'is-danger' : ''}`.trim() });
         otMeter.createDiv({ cls: 'ap-meter-fill' }).setCssProps({ '--ap-value': `${Math.min(100, (totalHours / 40) * 100)}%` });
         if (totalHours > 40) {
-            otItem.createDiv({ cls: 'ap-notice is-danger jws-card-note', text: 'Weekly overtime: hours over 40 are paid at the overtime rate.' });
+            otItem.createDiv({ cls: 'ap-notice is-danger jws-card-note', text: tr('Weekly overtime: hours over 40 are paid at the overtime rate.', '周加班：超过 40 小时的部分按加班费率计。') });
         }
     }
 
     private renderWeeklyChart(parent: HTMLElement) {
-        parent.createDiv({ cls: 'ap-label', text: 'Last 7 days' });
+        parent.createDiv({ cls: 'ap-label', text: tr('Last 7 days', '最近 7 天') });
         const chart = parent.createDiv({ cls: 'jws-day-bars is-wide' });
         const maxHours = 8;
         for (let i = 6; i >= 0; i--) {
@@ -1485,11 +1495,11 @@ class ShiftShareModal extends Modal {
         contentEl.empty();
         this.modalEl.addClass('jws-modal');
         this.modalEl.addClass('ap', 'ap-modal');
-        this.titleEl.setText('Share or export');
+        this.titleEl.setText(tr('Share or export', '分享或导出'));
 
         const form = contentEl.createDiv({ cls: 'jws-form-row' });
-        const startInput = field(form, 'Start date').createEl('input', { attr: { type: 'date', value: this.start.format('YYYY-MM-DD') } });
-        const endInput = field(form, 'End date').createEl('input', { attr: { type: 'date', value: this.end.format('YYYY-MM-DD') } });
+        const startInput = field(form, tr('Start date', '开始日期')).createEl('input', { attr: { type: 'date', value: this.start.format('YYYY-MM-DD') } });
+        const endInput = field(form, tr('End date', '结束日期')).createEl('input', { attr: { type: 'date', value: this.end.format('YYYY-MM-DD') } });
 
         const preview = contentEl.createEl('textarea', { cls: 'jws-share-preview' });
         preview.readOnly = true;
@@ -1505,18 +1515,18 @@ class ShiftShareModal extends Modal {
         updatePreview();
 
         const actions = contentEl.createDiv({ cls: 'ap-modal-foot' });
-        actions.createDiv({ cls: 'ap-foot-note', text: 'Text for a chat message, an image, a pay note, or a calendar file.' });
-        const closeBtn = actions.createEl('button', { text: 'Close' });
-        const noteBtn = actions.createEl('button', { text: 'Save pay note', attr: { 'aria-label': 'Save a note with every shift and the pay for this range, to compare with your payslip' } });
-        const icsBtn = actions.createEl('button', { text: 'Export .ics', attr: { 'aria-label': 'Save a calendar file for Google Calendar, Outlook or your phone' } });
-        const imageBtn = actions.createEl('button', { text: 'Download PNG' });
-        const copyBtn = actions.createEl('button', { text: 'Copy text', cls: 'mod-cta' });
+        actions.createDiv({ cls: 'ap-foot-note', text: tr('Text for a chat message, an image, a pay note, or a calendar file.', '可以导出聊天用的文字、图片、工资笔记或日历文件。') });
+        const closeBtn = actions.createEl('button', { text: tr('Close', '关闭') });
+        const noteBtn = actions.createEl('button', { text: tr('Save pay note', '存工资笔记'), attr: { 'aria-label': 'Save a note with every shift and the pay for this range, to compare with your payslip' } });
+        const icsBtn = actions.createEl('button', { text: tr('Export .ics', '导出 .ics'), attr: { 'aria-label': 'Save a calendar file for Google Calendar, Outlook or your phone' } });
+        const imageBtn = actions.createEl('button', { text: tr('Download PNG', '下载 PNG') });
+        const copyBtn = actions.createEl('button', { text: tr('Copy text', '复制文字'), cls: 'mod-cta' });
 
         const range = (): { start: Moment, end: Moment } | null => {
             const start = moment(startInput.value, 'YYYY-MM-DD');
             const end = moment(endInput.value, 'YYYY-MM-DD');
             if (!start.isValid() || !end.isValid() || end.isBefore(start, 'day')) {
-                new Notice('Pick a valid date range first.');
+                new Notice(tr('Pick a valid date range first.', '请先选有效的日期范围。'));
                 return null;
             }
             return { start, end };
@@ -1536,7 +1546,7 @@ class ShiftShareModal extends Modal {
 
         copyBtn.onClickEvent(async () => {
             await this.copyText(preview.value);
-            new Notice('Schedule text copied.');
+            new Notice(tr('Schedule text copied.', '已复制排班文字。'));
         });
 
         imageBtn.onClickEvent(async () => {
@@ -1550,11 +1560,11 @@ class ShiftShareModal extends Modal {
 
     private buildShareText(start: Moment, end: Moment): string {
         if (!start.isValid() || !end.isValid()) {
-            return 'Invalid date range.';
+            return tr('Invalid date range.', '日期范围无效。');
         }
 
         if (end.isBefore(start, 'day')) {
-            return 'End date must be after start date.';
+            return tr('End date must be after start date.', '结束日期要晚于开始日期。');
         }
 
         const shifts = this.getShifts(start, end);
@@ -1621,11 +1631,11 @@ class ShiftShareModal extends Modal {
         try {
             const pngBlob = await this.svgBlobToPng(svgBlob, width, height);
             this.downloadBlob(pngBlob, `${fileStem}.png`);
-            new Notice('Schedule image exported.');
+            new Notice(tr('Schedule image exported.', '已导出排班图片。'));
         } catch (error) {
             console.error('PNG export failed; falling back to SVG.', error);
             this.downloadBlob(svgBlob, `${fileStem}.svg`);
-            new Notice('PNG export failed; SVG image exported instead.');
+            new Notice(tr('PNG export failed; SVG image exported instead.', 'PNG 导出失败，改为导出 SVG。'));
         }
     }
 
@@ -1735,14 +1745,14 @@ class EditShiftModal extends Modal {
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
-        prepareModal(this, this.plugin, 'Edit shift');
+        prepareModal(this, this.plugin, tr('Edit shift', '编辑班次'));
 
         const form = contentEl.createDiv({ cls: 'jws-form' });
-        const dateInput = field(form, 'Date').createEl('input', { attr: { type: 'date', value: this.shift.date } });
+        const dateInput = field(form, tr('Date', '日期')).createEl('input', { attr: { type: 'date', value: this.shift.date } });
         const timeRow = form.createDiv({ cls: 'jws-form-row' });
-        const startInput = field(timeRow, 'Start').createEl('input', { attr: { type: 'time', value: this.shift.startTime } });
-        const endInput = field(timeRow, 'End').createEl('input', { attr: { type: 'time', value: this.shift.endTime } });
-        const storeSelect = field(form, 'Store').createEl('select', { cls: 'dropdown' });
+        const startInput = field(timeRow, tr('Start', '开始')).createEl('input', { attr: { type: 'time', value: this.shift.startTime } });
+        const endInput = field(timeRow, tr('End', '结束')).createEl('input', { attr: { type: 'time', value: this.shift.endTime } });
+        const storeSelect = field(form, tr('Store', '店铺')).createEl('select', { cls: 'dropdown' });
         normalizeStoreConfigs(this.plugin.settings.storeConfigs).forEach(store => {
             const opt = storeSelect.createEl('option', { text: store.name });
             opt.value = store.name;
@@ -1760,10 +1770,10 @@ class EditShiftModal extends Modal {
         storeSelect.onchange = updatePreview;
 
         const foot = contentEl.createDiv({ cls: 'ap-modal-foot' });
-        foot.createDiv({ cls: 'ap-foot-note', text: 'Saving also updates the calendar event.' });
-        const cancelBtn = foot.createEl('button', { text: 'Cancel' });
+        foot.createDiv({ cls: 'ap-foot-note', text: tr('Saving also updates the calendar event.', '保存时会同时更新日历事件。') });
+        const cancelBtn = foot.createEl('button', { text: tr('Cancel', '取消') });
         cancelBtn.onClickEvent(() => this.close());
-        const saveBtn = foot.createEl('button', { text: 'Save', cls: 'mod-cta' });
+        const saveBtn = foot.createEl('button', { text: tr('Save', '保存'), cls: 'mod-cta' });
         saveBtn.onClickEvent(async () => {
             if (!this.plugin.ensureScheduleMutationAllowed()) return;
             this.shift.date = dateInput.value;
@@ -1777,13 +1787,13 @@ class EditShiftModal extends Modal {
             this.shift.calculatedWage = res.wageAmount;
 
             await this.plugin.saveDataStore();
-            new Notice('Shift updated.');
+            new Notice(tr('Shift updated.', '班次已更新。'));
 
             try {
                 await this.plugin.syncShiftToCalendar(this.shift);
-                new Notice('Synced to calendar.');
+                new Notice(tr('Synced to calendar.', '已同步到日历。'));
             } catch (e) {
-                new Notice(`Calendar sync failed: ${errorMessage(e)}`);
+                new Notice(tr(`Calendar sync failed: ${errorMessage(e)}`, `日历同步失败：${errorMessage(e)}`));
             }
 
             this.close();
@@ -1799,10 +1809,10 @@ class EditShiftModal extends Modal {
 function renderWagePreview(el: HTMLElement, wage: number, hours: number) {
     el.empty();
     const left = el.createDiv();
-    left.createDiv({ cls: 'ap-cap', text: 'Estimated wage' });
+    left.createDiv({ cls: 'ap-cap', text: tr('Estimated wage', '预计工资') });
     left.createDiv({ cls: 'jws-preview-value ap-num', text: `¥${wage.toLocaleString()}` });
     const right = el.createDiv({ cls: 'jws-preview-right' });
-    right.createDiv({ cls: 'ap-cap', text: 'Hours' });
+    right.createDiv({ cls: 'ap-cap', text: tr('Hours', '工时') });
     right.createDiv({ cls: 'jws-preview-value ap-num', text: `${hours} h` });
 }
 
@@ -1823,19 +1833,19 @@ class QuickAddShiftModal extends Modal {
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
-        prepareModal(this, this.plugin, 'Add shift');
-        contentEl.createDiv({ cls: 'ap-modal-kicker', text: moment(this.date).format('dddd, MMM D YYYY') });
+        prepareModal(this, this.plugin, tr('Add shift', '加班次'));
+        contentEl.createDiv({ cls: 'ap-modal-kicker', text: moment(this.date).format(tr('dddd, MMM D YYYY', 'YYYY年M月D日 dddd')) });
 
         const form = contentEl.createDiv({ cls: 'jws-form' });
         const timeRow = form.createDiv({ cls: 'jws-form-row' });
-        const startInput = field(timeRow, 'Start').createEl('input', { attr: { type: 'time', value: '17:00' } });
-        const endInput = field(timeRow, 'End').createEl('input', { attr: { type: 'time', value: '22:00' } });
-        const storeSelect = field(form, 'Store').createEl('select', { cls: 'dropdown' });
+        const startInput = field(timeRow, tr('Start', '开始')).createEl('input', { attr: { type: 'time', value: '17:00' } });
+        const endInput = field(timeRow, tr('End', '结束')).createEl('input', { attr: { type: 'time', value: '22:00' } });
+        const storeSelect = field(form, tr('Store', '店铺')).createEl('select', { cls: 'dropdown' });
         normalizeStoreConfigs(this.plugin.settings.storeConfigs).forEach(store => {
             const opt = storeSelect.createEl('option', { text: store.name });
             opt.value = store.name;
         });
-        const breakInput = field(form, 'Break taken (minutes)').createEl('input', { attr: { type: 'number', min: '0', placeholder: 'Not entered' } });
+        const breakInput = field(form, tr('Break taken (minutes)', '休息（分钟）')).createEl('input', { attr: { type: 'number', min: '0', placeholder: tr('Not entered', '未填') } });
         const enteredBreak = () => (breakInput.value.trim() === '' ? undefined : Math.max(0, Number(breakInput.value) || 0));
 
         const preview = contentEl.createDiv({ cls: 'ap-card is-flat jws-preview' });
@@ -1865,28 +1875,28 @@ class QuickAddShiftModal extends Modal {
             const vacationDay = tracker.isVacationDay(this.date);
             if (result.isOverLimit) {
                 check.addClass('is-danger');
-                text.createEl('strong', { text: `This makes ${result.totalHoursLast7Days} h in ${range}.` });
-                text.appendText(' That is over 28 h in 7 days. ');
+                text.createEl('strong', { text: tr(`This makes ${result.totalHoursLast7Days} h in ${range}.`, `这样 ${range} 共 ${result.totalHoursLast7Days} 小时。`) });
+                text.appendText(tr(' That is over 28 h in 7 days. ', '这样 7 天内会超过 28 小时。'));
                 if (result.mixesVacation) appendMixedWeekNote(text);
             } else if (vacationDay && res.totalHours > 8) {
                 check.addClass('is-danger');
-                text.appendText(`Long-break day: ${res.totalHours} h is over 8 h.`);
+                text.appendText(tr(`Long-break day: ${res.totalHours} h is over 8 h.`, `长假日：${res.totalHours} 小时超过 8 小时。`));
             } else if (vacationDay && !result.mixesVacation) {
                 check.addClass('is-good');
-                text.appendText('Long-break day: up to 8 h per day.');
+                text.appendText(tr('Long-break day: up to 8 h per day.', '长假日：每天最多 8 小时。'));
             } else {
                 check.addClass(result.totalHoursLast7Days / 28 >= 0.85 ? 'is-warn' : 'is-good');
-                text.appendText(`Busiest 7 days with this shift: ${result.totalHoursLast7Days} h in ${range} (${result.remainingHours} h left). `);
+                text.appendText(tr(`Busiest 7 days with this shift: ${result.totalHoursLast7Days} h in ${range} (${result.remainingHours} h left). `, `加上这班，最忙的 7 天（${range}）共 ${result.totalHoursLast7Days} 小时，还剩 ${result.remainingHours} 小时。`));
                 if (result.mixesVacation) appendMixedWeekNote(text);
             }
-            saveBtn?.setText(result.isOverLimit ? 'Save anyway' : 'Add shift');
+            saveBtn?.setText(result.isOverLimit ? tr('Save anyway', '仍然保存') : tr('Add shift', '加班次'));
         };
 
         const foot = contentEl.createDiv({ cls: 'ap-modal-foot' });
-        foot.createDiv({ cls: 'ap-foot-note', text: 'Also written to your calendar.' });
-        const cancelBtn = foot.createEl('button', { text: 'Cancel' });
+        foot.createDiv({ cls: 'ap-foot-note', text: tr('Also written to your calendar.', '也已写入日历。') });
+        const cancelBtn = foot.createEl('button', { text: tr('Cancel', '取消') });
         cancelBtn.onClickEvent(() => this.close());
-        saveBtn = foot.createEl('button', { text: 'Add shift', cls: 'mod-cta' });
+        saveBtn = foot.createEl('button', { text: tr('Add shift', '加班次'), cls: 'mod-cta' });
         updatePreview();
         [startInput, endInput, breakInput].forEach(el => el.oninput = updatePreview);
         storeSelect.onchange = updatePreview;
@@ -1902,7 +1912,7 @@ class QuickAddShiftModal extends Modal {
             });
 
             if (hasOverlap) {
-                 new Notice('This overlaps an existing shift on the same day.');
+                 new Notice(tr('This overlaps an existing shift on the same day.', '和当天已有的班次时间重叠。'));
                  return;
             }
 
@@ -1924,13 +1934,13 @@ class QuickAddShiftModal extends Modal {
 
             this.plugin.shiftData.shifts.push(newShift);
             await this.plugin.saveDataStore();
-            new Notice('Shift added.');
+            new Notice(tr('Shift added.', '已加班次。'));
 
             try {
                 await this.plugin.syncShiftToCalendar(newShift);
-                new Notice('Synced to calendar.');
+                new Notice(tr('Synced to calendar.', '已同步到日历。'));
             } catch (e) {
-                new Notice(`Calendar sync failed: ${errorMessage(e)}`);
+                new Notice(tr(`Calendar sync failed: ${errorMessage(e)}`, `日历同步失败：${errorMessage(e)}`));
             }
 
             this.close();
