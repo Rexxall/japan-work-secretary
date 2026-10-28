@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = await mkdtemp(path.join(tmpdir(), 'jws-tests-'));
-const testNames = ['calendarSync', 'hoursAndWage'];
+const testNames = ['calendarSync', 'hoursAndWage', 'exports'];
 
 try {
     await build({
@@ -19,7 +19,8 @@ try {
         format: 'cjs',
         target: 'node18',
         sourcemap: 'inline',
-        logLevel: 'silent'
+        logLevel: 'silent',
+        alias: { obsidian: path.join(root, 'tests/shims/obsidian.ts') }
     });
 
     const result = spawnSync(process.execPath, ['--test', ...testNames.map(name => path.join(outDir, `${name}.test.cjs`))], { stdio: 'inherit' });

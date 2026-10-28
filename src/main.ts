@@ -1,8 +1,10 @@
-import { Plugin, Notice, Editor, requestUrl } from 'obsidian';
+import { Plugin, Notice, Editor, TFile, arrayBufferToBase64, normalizePath, requestUrl, moment } from 'obsidian';
 import { JapanWorkSecretarySettingTab, DEFAULT_SETTINGS, JapanWorkSecretarySettings, migrateIncomeAlerts } from './settings';
 import { JapanWorkSecretaryData, DEFAULT_DATA, RecurringShift, Shift, normalizeStoreConfigs, parseRecurringInstanceId } from './data';
 import { DashboardView, DASHBOARD_VIEW_TYPE } from './dashboardView';
-import { AIParser } from './aiParser';
+import { AIParser, ParsedShiftDraft, draftToShift } from './aiParser';
+import { ShiftReviewModal } from './reviewModal';
+import { buildPayNote, buildShiftsIcs } from './exportShifts';
 import { WageCalculator } from './wageCalculator';
 import { CalendarSyncAction, MacCalendarSync } from './macCalendarSync';
 import {
@@ -18,17 +20,11 @@ import {
 } from './calendarSyncPlanner';
 import { HolidayUtility } from './holidayUtility';
 import { SecureSecretStore } from './secureSecretStore';
-import moment from 'moment';
 
 export interface JapanWorkSecretaryPluginData {
     settings: JapanWorkSecretarySettings;
     data: JapanWorkSecretaryData;
 }
-
-const DEFAULT_PLUGIN_DATA: JapanWorkSecretaryPluginData = {
-    settings: DEFAULT_SETTINGS,
-    data: DEFAULT_DATA
-};
 
 export interface CalendarSyncSummary {
     created: number;
@@ -46,11 +42,19 @@ interface CalendarSyncOptions {
     label?: string;
 }
 
+const SHARED_GEMINI_SECRET = 'gemini-api-key';
+const PLUGIN_GEMINI_SECRET = 'japan-work-secretary-gemini-api-key';
+
+const IMAGE_TYPES: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', heic: 'image/heic' };
+
+export function errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
 export default class JapanWorkSecretaryPlugin extends Plugin {
 	settings: JapanWorkSecretarySettings;
     shiftData: JapanWorkSecretaryData;
     private readonly holidayCacheTtlMs = 7 * 24 * 60 * 60 * 1000;
-    private runtimeGeminiApiKey: string = '';
     private calendarSyncInProgress: boolean = false;
 
 	async onload() {
@@ -72,39 +76,39 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
         // Command: Parse Shift from Selection
         this.addCommand({
             id: 'parse-shift-text-selection',
-            name: 'Parse Shift from Selected Text',
+            name: 'Read shifts from selected text',
             editorCallback: (editor: Editor) => {
                 const selection = editor.getSelection();
                 if (!selection) {
-                    new Notice('Please select some text containing shift info.');
+                    new Notice('Select the text that contains your shifts first.');
                     return;
                 }
-                this.parseShiftSelection(selection);
+                void this.parseShiftSelection(selection);
             }
         });
 
         this.addCommand({
             id: 'parse-shift-image',
-            name: 'Parse Shift from Current Note Image',
-            callback: () => this.parseShiftImage()
+            name: 'Read shifts from images in the current note',
+            callback: () => void this.parseShiftImage()
         });
 
         this.addCommand({
             id: 'open-dashboard',
-            name: 'Open Secretary Dashboard',
-            callback: () => this.openDashboard()
+            name: 'Open dashboard',
+            callback: () => void this.openDashboard()
         });
 
         this.addCommand({
             id: 'sync-smart-to-calendar',
-            name: 'Smart Sync Shifts to macOS Calendar',
-            callback: () => this.smartSyncCalendar()
+            name: 'Sync changed shifts to macOS Calendar',
+            callback: () => void this.smartSyncCalendar()
         });
 
         this.addCommand({
             id: 'sync-all-to-calendar',
-            name: 'Force Full Sync to macOS Calendar',
-            callback: () => this.syncAllShifts()
+            name: 'Rewrite all shifts in macOS Calendar',
+            callback: () => void this.syncAllShifts()
         });
 
         this.addCommand({
@@ -116,16 +120,11 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
             }
         });
 
-		console.log('Japan Work Secretary plugin loaded');
-	}
-
-	onunload() {
-		console.log('Japan Work Secretary plugin unloaded');
 	}
 
 	async loadDataStore() {
         // Load data, handling cases where it might be empty or missing properties
-		const loadedData = await this.loadData();
+		const loadedData = (await this.loadData()) as Partial<JapanWorkSecretaryPluginData> | null;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData?.settings);
         this.settings.storeConfigs = normalizeStoreConfigs(this.settings.storeConfigs);
         this.settings.incomeAlerts = migrateIncomeAlerts(this.settings);
@@ -174,63 +173,42 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
             storeConfigs: normalizeStoreConfigs(this.settings.storeConfigs)
         };
 
-        if (settingsToSave.useMacKeychainForGeminiApiKey) {
-            settingsToSave.geminiApiKey = '';
-        }
+        settingsToSave.geminiApiKey = '';
 
         return settingsToSave;
     }
 
+    /** The key is kept in Obsidian's secret storage; settings only hold the secret's name. */
     getGeminiApiKey(): string {
-        return this.runtimeGeminiApiKey || this.settings.geminiApiKey || '';
+        const name = this.settings.geminiSecretName;
+        return (name && this.app.secretStorage.getSecret(name)) || '';
     }
 
-    async setGeminiApiKey(apiKey: string) {
-        this.runtimeGeminiApiKey = apiKey;
-
-        if (this.settings.useMacKeychainForGeminiApiKey) {
-            try {
-                await SecureSecretStore.setGeminiApiKey(apiKey);
-                this.settings.geminiApiKey = '';
-            } catch (error) {
-                console.error('Failed to save Gemini API key to macOS Keychain.', error);
-                this.settings.geminiApiKey = apiKey;
-                this.settings.useMacKeychainForGeminiApiKey = false;
-                new Notice('Keychain save failed; Gemini key remains in plugin data.');
-            }
-        } else {
-            this.settings.geminiApiKey = apiKey;
-        }
-
-        await this.saveSettings();
-    }
-
+    /**
+     * Before 1.4.0 the key lived in the macOS Keychain or in plugin data. Move it
+     * into secret storage once, under a shared name other plugins can pick too.
+     */
     private async initializeGeminiApiKey() {
-        if (!this.settings.useMacKeychainForGeminiApiKey) {
-            this.runtimeGeminiApiKey = this.settings.geminiApiKey || '';
-            return;
-        }
-
-        const legacyPlaintextKey = this.settings.geminiApiKey;
-        if (legacyPlaintextKey) {
-            this.runtimeGeminiApiKey = legacyPlaintextKey;
+        if (this.settings.geminiSecretName) return;
+        let legacyKey = this.settings.geminiApiKey || '';
+        if (!legacyKey && this.settings.useMacKeychainForGeminiApiKey) {
             try {
-                await SecureSecretStore.setGeminiApiKey(legacyPlaintextKey);
-                this.settings.geminiApiKey = '';
-                await this.saveSettings();
-            } catch (error) {
-                console.error('Failed to migrate Gemini API key to macOS Keychain.', error);
-                this.settings.useMacKeychainForGeminiApiKey = false;
-                await this.saveSettings();
+                legacyKey = await SecureSecretStore.getGeminiApiKey();
+            } catch {
+                legacyKey = '';
             }
-            return;
         }
+        if (!legacyKey) return;
 
-        try {
-            this.runtimeGeminiApiKey = await SecureSecretStore.getGeminiApiKey();
-        } catch (error) {
-            this.runtimeGeminiApiKey = '';
-        }
+        const storage = this.app.secretStorage;
+        const shared = storage.getSecret(SHARED_GEMINI_SECRET);
+        const name = !shared || shared === legacyKey ? SHARED_GEMINI_SECRET : PLUGIN_GEMINI_SECRET;
+        storage.setSecret(name, legacyKey);
+        this.settings.geminiSecretName = name;
+        this.settings.geminiApiKey = '';
+        this.settings.useMacKeychainForGeminiApiKey = false;
+        // The Keychain entry is left in place: other vaults may still read it until they upgrade too.
+        await this.saveSettings();
     }
 
     async refreshHolidayCache(force: boolean = false) {
@@ -242,14 +220,14 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
         }
 
         const response = await requestUrl({ url: HolidayUtility.HOLIDAY_API_URL });
-        const holidayData = response.json;
+        const holidayData = response.json as unknown;
 
         if (!holidayData || typeof holidayData !== 'object' || Array.isArray(holidayData)) {
             throw new Error('Unexpected holiday API response.');
         }
 
         const normalized: { [date: string]: string } = {};
-        Object.entries(holidayData).forEach(([date, name]) => {
+        Object.entries(holidayData as Record<string, unknown>).forEach(([date, name]) => {
             if (/^\d{4}-\d{2}-\d{2}$/.test(date) && typeof name === 'string') {
                 normalized[date] = name;
             }
@@ -264,7 +242,7 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
     /**
      * Helper to process raw shift data (calc wage, de-duplicate, save, sync)
      */
-    async processRawShifts(rawShifts: any[]) {
+    async processRawShifts(rawShifts: Shift[]) {
         if (!this.ensureScheduleMutationAllowed()) return;
         if (rawShifts.length === 0) {
             new Notice('No shifts found to process.');
@@ -301,7 +279,7 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
             new Notice(`Added ${newlyAddedShifts.length} new shifts.`);
 
             if (this.calendarSyncInProgress) {
-                new Notice('Calendar sync is busy; new shifts were saved locally and will be picked up by Smart sync.');
+                new Notice('Calendar sync is busy; new shifts were saved and will go out with the next sync.');
                 return;
             }
             this.calendarSyncInProgress = true;
@@ -332,7 +310,7 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
                     total: newlyAddedShifts.length
                 }));
             } catch (e) {
-                new Notice(`Calendar sync failed: ${e.message}`);
+                new Notice(`Calendar sync failed: ${errorMessage(e)}`);
             } finally {
                 this.calendarSyncInProgress = false;
             }
@@ -342,75 +320,86 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
     }
 
     async parseShiftSelection(selection: string) {
-        new Notice('AI parsing selected text...');
+        new Notice('Reading shifts from the selection...');
         try {
             const parser = new AIParser(this.getGeminiApiKey(), this.settings.storeConfigs);
-            const rawShifts = await parser.parseText(selection);
-            await this.processRawShifts(rawShifts);
-        } catch (error: any) {
-            new Notice(`Error parsing selection: ${error.message}`);
-            console.error('Error parsing selection:', error);
+            this.reviewDrafts(await parser.parseText(selection), 'the selected text');
+        } catch (error) {
+            new Notice(`Could not read the selection: ${errorMessage(error)}`);
         }
     }
 
-	async parseShiftImage() {
-		const activeFile = this.app.workspace.getActiveFile();
-		if (!activeFile) {
-			new Notice('No active file selected.');
-			return;
-		}
+    /** Reads every image embedded in the active note, then shows one review for all of them. */
+    async parseShiftImage() {
+        const activeFile = this.app.workspace.getActiveFile();
+        if (!activeFile) {
+            new Notice('Open a note with a schedule image first.');
+            return;
+        }
 
-		const content = await this.app.vault.read(activeFile);
-		
-		// Find all markdown images ![[alt]](url) and Obsidian wikilinks ![[image.png]]
-		const mdImageRegex = /!\[.*?\]\((.*?)\)/g;
-		const wikiImageRegex = /!\[\[(.*?)\]\]/g;
-		
-		const imageNames: string[] = [];
-		let match;
-		
-		while ((match = mdImageRegex.exec(content)) !== null) {
-			imageNames.push(match[1]);
-		}
-		while ((match = wikiImageRegex.exec(content)) !== null) {
-			imageNames.push(match[1]);
-		}
+        const embeds = this.app.metadataCache.getFileCache(activeFile)?.embeds ?? [];
+        const images: TFile[] = [];
+        for (const embed of embeds) {
+            const file = this.app.metadataCache.getFirstLinkpathDest(embed.link.split('#')[0], activeFile.path);
+            if (file && IMAGE_TYPES[file.extension.toLowerCase()] && !images.includes(file)) images.push(file);
+        }
+        if (images.length === 0) {
+            new Notice('No images found in this note.');
+            return;
+        }
 
-		if (imageNames.length === 0) {
-			new Notice('No images found in the active file.');
-			return;
-		}
-		
-		new Notice(`Found ${imageNames.length} image(s). Starting AI OCR batch processing...`);
-		
-		const allFiles = this.app.vault.getFiles();
+        let parser: AIParser;
+        try {
+            parser = new AIParser(this.getGeminiApiKey(), this.settings.storeConfigs);
+        } catch (error) {
+            new Notice(errorMessage(error));
+            return;
+        }
+        new Notice(images.length === 1 ? 'Reading 1 image...' : `Reading ${images.length} images...`);
+        const drafts: ParsedShiftDraft[] = [];
+        for (const image of images) {
+            try {
+                const data = arrayBufferToBase64(await this.app.vault.readBinary(image));
+                drafts.push(...await parser.parseImage(data, IMAGE_TYPES[image.extension.toLowerCase()]));
+            } catch (error) {
+                new Notice(`Could not read ${image.name}: ${errorMessage(error)}`);
+            }
+        }
+        this.reviewDrafts(drafts, images.length === 1 ? images[0].name : `${images.length} images`);
+    }
 
-		for (const imageName of imageNames) {
-			const imageFile = allFiles.find(f => f.name === imageName || f.path.endsWith(imageName));
+    private reviewDrafts(drafts: ParsedShiftDraft[], source: string) {
+        if (drafts.length === 0) {
+            new Notice('No shifts found.');
+            return;
+        }
+        new ShiftReviewModal(this.app, this, drafts, source, async confirmed => {
+            await this.processRawShifts(confirmed.map(draftToShift));
+        }).open();
+    }
 
-			if (!imageFile) {
-				console.warn(`Image file ${imageName} not found in vault.`);
-				continue;
-			}
+    private async writeVaultFile(name: string, content: string): Promise<TFile> {
+        const folder = normalizePath(this.settings.exportFolder || DEFAULT_SETTINGS.exportFolder);
+        if (!this.app.vault.getFolderByPath(folder)) await this.app.vault.createFolder(folder);
+        const path = normalizePath(`${folder}/${name}`);
+        const existing = this.app.vault.getFileByPath(path);
+        if (existing) {
+            await this.app.vault.process(existing, () => content);
+            return existing;
+        }
+        return this.app.vault.create(path, content);
+    }
 
-			// Get absolute path
-			const absoluteImagePath = (this.app.vault.adapter as any).getBasePath() + '/' + imageFile.path;
-			
-			// Mime Type guessing
-			let mimeType = 'image/jpeg';
-			if (imageName.toLowerCase().endsWith('.png')) mimeType = 'image/png';
-			else if (imageName.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
-			
-			try {
-				const parser = new AIParser(this.getGeminiApiKey(), this.settings.storeConfigs);
-				const rawShifts = await parser.parseLocalImage(absoluteImagePath, mimeType);
-				await this.processRawShifts(rawShifts);
-			} catch (error: any) {
-				console.error(`Error processing ${imageName}:`, error);
-				new Notice(`Error processing ${imageName}: ${error.message}`);
-			}
-		}
-	}
+    /** A note with every shift and the estimated pay, to compare with the payslip. */
+    async savePayNote(shifts: Shift[], start: string, end: string, total: number) {
+        const file = await this.writeVaultFile(`Pay ${start} to ${end}.md`, buildPayNote(shifts, start, end, total, new Date()));
+        await this.app.workspace.getLeaf(true).openFile(file);
+    }
+
+    async exportIcs(shifts: Shift[]) {
+        const file = await this.writeVaultFile('shifts.ics', buildShiftsIcs(shifts, this.settings.eventTitlePrefix, new Date()));
+        new Notice(`Saved ${file.path}. Open it to add ${shifts.length === 1 ? 'the shift' : 'the shifts'} to your calendar.`);
+    }
 
     async openDashboard() {
         const { workspace } = this.app;
@@ -422,7 +411,7 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
             await leaf.setViewState({ type: DASHBOARD_VIEW_TYPE, active: true });
         }
 
-        workspace.revealLeaf(leaf);
+        await workspace.revealLeaf(leaf);
     }
 
     private createRecurringShiftForSync(date: string, rule: RecurringShift): Shift {
@@ -704,8 +693,8 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
             await this.saveDataStore();
             new Notice(this.formatCalendarSyncSummary(summary));
             return summary;
-        } catch (error: any) {
-            const message = error?.message || String(error);
+        } catch (error) {
+            const message = errorMessage(error);
             new Notice(`Calendar sync failed: ${message}`);
             return {
                 created: 0,

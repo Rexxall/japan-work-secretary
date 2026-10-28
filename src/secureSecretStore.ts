@@ -15,22 +15,10 @@ function runSecurity(args: string[]): Promise<string> {
     });
 }
 
+/** Read-only: used once to move a key saved by versions before 1.4.0 into Obsidian's secret storage. */
 export class SecureSecretStore {
     public static async getGeminiApiKey(): Promise<string> {
         return runSecurity(['find-generic-password', '-s', SERVICE_NAME, '-a', GEMINI_ACCOUNT, '-w']);
     }
 
-    public static async setGeminiApiKey(apiKey: string): Promise<void> {
-        await runSecurity([
-            'add-generic-password',
-            '-s', SERVICE_NAME,
-            '-a', GEMINI_ACCOUNT,
-            '-w', apiKey,
-            '-U'
-        ]);
-    }
-
-    public static async deleteGeminiApiKey(): Promise<void> {
-        await runSecurity(['delete-generic-password', '-s', SERVICE_NAME, '-a', GEMINI_ACCOUNT]);
-    }
 }

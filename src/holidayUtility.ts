@@ -1,4 +1,5 @@
-import moment from 'moment';
+import { moment } from 'obsidian';
+import type { Moment } from 'moment';
 
 export class HolidayUtility {
     public static readonly HOLIDAY_API_URL = 'https://holidays-jp.github.io/api/v1/date.json';
@@ -70,7 +71,7 @@ export class HolidayUtility {
     /**
      * Check if a date is a Sunday or a Japanese holiday
      */
-    public static isSundayOrHoliday(date: moment.Moment | string, customHolidays: string[] = []): boolean {
+    public static isSundayOrHoliday(date: Moment | string, customHolidays: string[] = []): boolean {
         const d = typeof date === 'string' ? moment(date, 'YYYY-MM-DD') : date;
         const dateStr = d.format('YYYY-MM-DD');
         

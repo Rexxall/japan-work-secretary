@@ -1,4 +1,5 @@
-import moment from 'moment';
+import { moment } from 'obsidian';
+import type { Moment } from 'moment';
 import { JapanWorkSecretarySettings } from './settings';
 import { HolidayUtility } from './holidayUtility';
 import { getStoreWageBand } from './data';
@@ -18,7 +19,7 @@ export class WageCalculator {
     /**
      * Parse time string HH:mm into moment object on a specific date
      */
-    private parseTime(date: string, timeStr: string): moment.Moment {
+    private parseTime(date: string, timeStr: string): Moment {
         return moment(`${date} ${timeStr}`, 'YYYY-MM-DD HH:mm');
     }
 

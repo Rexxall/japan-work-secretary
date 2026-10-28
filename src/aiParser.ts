@@ -1,10 +1,50 @@
-import { GoogleGenAI } from '@google/genai';
+import { requestUrl } from 'obsidian';
 import { Shift, StoreConfig, normalizeStoreConfigs } from './data';
-import * as fs from 'fs';
+
+const GEMINI_MODEL = 'gemini-2.5-flash';
+
+/** Fields the model is asked for; everything else is worked out locally. */
+export interface ParsedShiftDraft {
+    date: string;
+    startTime: string;
+    endTime: string;
+    storeName: string;
+}
+
+type GeminiPart = { text: string } | { inlineData: { mimeType: string; data: string } };
+
+/**
+ * Turn the model's reply into shift drafts. Rows with a malformed date or time are
+ * dropped rather than guessed, because a wrong shift is worse than a missing one.
+ */
+export function parseShiftReply(reply: string, normalizeStoreName: (name: string) => string): ParsedShiftDraft[] {
+    const cleaned = reply.replace(/```json/g, '').replace(/```/g, '').trim();
+    const parsed: unknown = JSON.parse(cleaned);
+    if (!Array.isArray(parsed)) throw new Error('The reply was not a list of shifts.');
+    const drafts: ParsedShiftDraft[] = [];
+    for (const item of parsed as unknown[]) {
+        if (!item || typeof item !== 'object') continue;
+        const row = item as Record<string, unknown>;
+        const date = typeof row.date === 'string' ? row.date.trim() : '';
+        const startTime = typeof row.startTime === 'string' ? row.startTime.trim().padStart(5, '0') : '';
+        const endTime = typeof row.endTime === 'string' ? row.endTime.trim().padStart(5, '0') : '';
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) continue;
+        drafts.push({ date, startTime, endTime, storeName: normalizeStoreName(typeof row.storeName === 'string' ? row.storeName : '') });
+    }
+    return drafts;
+}
+
+export function draftToShift(draft: ParsedShiftDraft): Shift {
+    return { id: crypto.randomUUID(), ...draft, calculatedWage: 0, calculatedHours: 0 };
+}
 
 export class AIParser {
-    private ai: GoogleGenAI;
     private storeConfigs: StoreConfig[];
+
+    constructor(private apiKey: string, storeConfigs: StoreConfig[] = [], private now: Date = new Date()) {
+        if (!apiKey) throw new Error('Add a Gemini API key in settings first.');
+        this.storeConfigs = normalizeStoreConfigs(storeConfigs);
+    }
 
     private get parsePrompt(): string {
         const storeLines = this.storeConfigs.map(store =>
@@ -12,36 +52,21 @@ export class AIParser {
         ).join('\n');
 
         return `
-    You are a helpful assistant that extracts shift schedule information from images.
-    The images contain a table or handwritten notes with shift schedules.
-    The primary store is "まいばすけっと" (Mai Basket).
+    You extract part-time shift schedules from a message, a table or a photo of a roster.
     Known stores and aliases:
     ${storeLines}
-    
-    Please extract the shift data and output it as a pure JSON array of objects.
-    Each object must have the following string keys strictly formatted:
-    - "date": The date of the shift in "YYYY-MM-DD" format. If the year is not present, assume 2026.
-    - "startTime": The start time in "HH:mm" 24-hour format.
-    - "endTime": The end time in "HH:mm" 24-hour format.
-    - "storeName": The name of the store, normalized to one of the known store names above.
-    
-    Example output format:
-    [
-      {
-        "date": "2026-03-21",
-        "startTime": "17:00",
-        "endTime": "20:45",
-        "storeName": "${this.storeConfigs[0]?.name || 'Store A'}"
-      }
-    ]
-    
-    Do not include markdown blocks like \`\`\`json in your response. Output *only* the raw JSON.
-    `;
-    }
 
-    constructor(apiKey: string, storeConfigs: StoreConfig[] = []) {
-        this.ai = new GoogleGenAI({ apiKey: apiKey });
-        this.storeConfigs = normalizeStoreConfigs(storeConfigs);
+    Output a pure JSON array of objects with these string keys:
+    - "date": "YYYY-MM-DD". If the year is missing, assume ${this.now.getFullYear()}.
+    - "startTime": "HH:mm", 24-hour.
+    - "endTime": "HH:mm", 24-hour.
+    - "storeName": one of the known store names above.
+
+    Example:
+    [{ "date": "${this.now.getFullYear()}-03-21", "startTime": "17:00", "endTime": "20:45", "storeName": "${this.storeConfigs[0]?.name || 'Store A'}" }]
+
+    Output only the JSON, without code fences. If there are no shifts, output [].
+    `;
     }
 
     private normalizeStoreName(rawStoreName: string): string {
@@ -52,115 +77,33 @@ export class AIParser {
         return match?.name || normalized || this.storeConfigs[0].name;
     }
 
-    /**
-     * Parse an image from the local filesystem
-     * @param imagePath Absolute path to the image
-     * @param mimeType e.g., 'image/jpeg' or 'image/png'
-     */
-    public async parseLocalImage(imagePath: string, mimeType: string): Promise<Shift[]> {
-        console.log(`Parsing image at path: ${imagePath}`);
-        try {
-            const imageBuffer = await fs.promises.readFile(imagePath);
-            const base64Image = imageBuffer.toString('base64');
-            
-            const response = await this.ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: [
-                    {
-                        role: 'user',
-                        parts: [
-                            { text: this.parsePrompt },
-                            {
-                                inlineData: {
-                                    data: base64Image,
-                                    mimeType: mimeType
-                                }
-                            }
-                        ]
-                    }
-                ],
-                config: {
-                    temperature: 0.1,
-                }
-            });
-
-            const textResponse = response.text;
-            if (!textResponse) {
-                throw new Error("No text response from Gemini.");
-            }
-            
-            // Clean up potentially unformatted response
-            const cleanedText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-            const parsedData = JSON.parse(cleanedText);
-            
-            if (!Array.isArray(parsedData)) {
-                throw new Error("Parsed data is not an array.");
-            }
-            
-            const shifts: Shift[] = parsedData.map(item => ({
-                id: crypto.randomUUID(), // Generate unique ID
-                date: item.date,
-                startTime: item.startTime,
-                endTime: item.endTime,
-                storeName: this.normalizeStoreName(item.storeName),
-                // These will be calculated later
-                calculatedWage: 0, 
-                calculatedHours: 0
-            }));
-            
-            return shifts;
-        } catch (error) {
-            console.error("Error parsing image with Gemini:", error);
-            throw error;
-        }
+    /** Parse an image already read from the vault, as base64. */
+    public async parseImage(base64Image: string, mimeType: string): Promise<ParsedShiftDraft[]> {
+        return this.generate([{ text: this.parsePrompt }, { inlineData: { data: base64Image, mimeType } }]);
     }
-    /**
-     * Parse text directly using Gemini
-     * @param text The text containing shift information
-     */
-    public async parseText(text: string): Promise<Shift[]> {
-        console.log("Parsing text for shifts...");
-        try {
-            const response = await this.ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: [
-                    {
-                        role: 'user',
-                        parts: [
-                            { text: this.parsePrompt },
-                            { text: `Here is the text to parse: \n\n${text}` }
-                        ]
-                    }
-                ],
-                config: {
-                    temperature: 0.1,
-                }
-            });
 
-            const textResponse = response.text;
-            if (!textResponse) {
-                throw new Error("No text response from Gemini.");
-            }
-            
-            const cleanedText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-            const parsedData = JSON.parse(cleanedText);
-            
-            if (!Array.isArray(parsedData)) {
-                throw new Error("Parsed data is not an array.");
-            }
-            
-            return parsedData.map(item => ({
-                id: crypto.randomUUID(),
-                date: item.date,
-                startTime: item.startTime,
-                endTime: item.endTime,
-                storeName: this.normalizeStoreName(item.storeName),
-                calculatedWage: 0, 
-                calculatedHours: 0
-            }));
-        } catch (error) {
-            console.error("Error parsing text with Gemini:", error);
-            throw error;
+    public async parseText(text: string): Promise<ParsedShiftDraft[]> {
+        return this.generate([{ text: this.parsePrompt }, { text: `Here is the text to parse:\n\n${text}` }]);
+    }
+
+    private async generate(parts: GeminiPart[]): Promise<ParsedShiftDraft[]> {
+        // The key goes in a header, never in the URL, so it does not end up in logs or error messages.
+        const response = await requestUrl({
+            url: `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+            method: 'POST',
+            contentType: 'application/json',
+            headers: { 'x-goog-api-key': this.apiKey },
+            body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { temperature: 0.1, responseMimeType: 'application/json' } }),
+            throw: false
+        });
+        if (response.status >= 400) {
+            let detail: string | undefined;
+            try { detail = (response.json as { error?: { message?: string } } | undefined)?.error?.message; } catch { detail = undefined; }
+            throw new Error(`Gemini request failed (${response.status})${detail ? `: ${detail}` : ''}`);
         }
+        const body = response.json as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+        const reply = (body.candidates?.[0]?.content?.parts ?? []).map(part => part.text ?? '').join('');
+        if (!reply) throw new Error('Gemini returned no text.');
+        return parseShiftReply(reply, name => this.normalizeStoreName(name));
     }
 }

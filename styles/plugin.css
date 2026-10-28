@@ -155,7 +155,7 @@
 	background: var(--rk-hair);
 }
 
-.japan-work-dashboard .jws-store-seg { background: var(--jws-store); }
+.japan-work-dashboard .jws-store-seg { background: var(--jws-store); flex-basis: var(--jws-share, 0); }
 
 .japan-work-dashboard .jws-store-legend { margin-top: 6px; font-size: var(--font-ui-smaller); }
 
@@ -407,6 +407,7 @@
 
 .jws-settings .jws-band-seg {
 	min-width: 0;
+	flex-grow: var(--jws-grow, 1);
 	padding: 6px 8px;
 	border-right: 1px solid var(--background-primary);
 	font-variant-numeric: tabular-nums;
@@ -438,3 +439,26 @@
 .jws-settings .jws-store-box h4 { margin: 10px 0 4px; }
 .jws-settings .jws-band-box { margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--background-modifier-border); }
 .jws-settings .jws-band-box h5 { margin: 6px 0; }
+
+/* Second click deletes */
+.japan-work-dashboard .jws-danger-icon.is-armed { color: var(--text-error); }
+
+/* Review AI-read shifts before saving */
+.modal.jws-review-modal { width: min(820px, 96vw); }
+.jws-review-modal .jws-review-list { display: grid; gap: var(--size-4-2); margin: var(--size-4-3) 0; max-height: 55vh; overflow-y: auto; }
+.jws-review-modal .jws-review-row {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: var(--size-4-1) var(--size-4-2);
+	align-items: center;
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+}
+.jws-review-modal .jws-review-row.is-off { opacity: 0.55; }
+.jws-review-modal .jws-review-fields { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1.4fr; gap: var(--size-4-1); }
+.jws-review-modal .jws-review-fields :is(input, select) { width: 100%; min-width: 0; }
+.jws-review-modal .jws-review-info { grid-column: 2; display: flex; flex-wrap: wrap; gap: var(--size-4-2); align-items: center; font-size: var(--font-ui-small); color: var(--text-muted); }
+@media (max-width: 600px) {
+	.jws-review-modal .jws-review-fields { grid-template-columns: 1fr 1fr; }
+}

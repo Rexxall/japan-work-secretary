@@ -52,7 +52,7 @@ export class PolicyExplanationModal extends Modal {
         income.createEl('h3', { text: '2. Income alerts' });
         const incomeList = income.createEl('ul');
         incomeList.createEl('li', { text: 'Thresholds for income tax, resident tax, social insurance and dependants change from year to year and depend on your situation.' });
-        incomeList.createEl('li', { text: 'The plugin has no built-in tax rules. Enter the amounts from this year\'s official guidance in Settings → Income Alerts.' });
+        incomeList.createEl('li', { text: 'The plugin has no built-in tax rules. Enter the amounts from this year\'s official guidance in Settings → Income alerts.' });
 
         const links = container.createDiv({ cls: 'policy-section' });
         links.createEl('h3', { text: 'Official sources (Japanese)' });

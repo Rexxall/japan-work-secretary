@@ -1,6 +1,6 @@
 import { execFile } from 'child_process';
 import { Shift } from './data';
-import moment from 'moment';
+import { moment } from 'obsidian';
 
 export type CalendarSyncAction = 'created' | 'updated';
 export type CalendarDeleteAction = 'deleted' | 'not-found';
@@ -170,10 +170,8 @@ export class MacCalendarSync {
         end run
         `;
 
-        console.log(`Syncing shift ${eventTitle} to Calendar "${this.calendarName}"...`);
         try {
             const result = await this.executeAppleScript(script, args);
-            console.log(`Successfully synced shift on ${shift.date}: ${result}`);
             return normalizeCalendarSyncAction(result);
         } catch (error) {
             console.error("Failed to sync to Calendar.", error);
@@ -197,11 +195,11 @@ export class MacCalendarSync {
                 const action = await this.syncShift(shift);
                 result[action] += 1;
                 result.items.push({ shiftId: shift.id, action });
-            } catch (error: any) {
+            } catch (error) {
                 result.failed += 1;
                 result.items.push({
                     shiftId: shift.id,
-                    error: error?.message || String(error)
+                    error: error instanceof Error ? error.message : String(error)
                 });
             }
         }

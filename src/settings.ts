@@ -1,6 +1,6 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, SecretComponent, Setting } from 'obsidian';
 import JapanWorkSecretaryPlugin from './main';
-import { EffectiveWageBandConfig, StoreConfig, cloneDefaultStoreConfigs, normalizeStoreConfigs } from './data';
+import { EffectiveWageBandConfig, StoreConfig, WageBandConfig, cloneDefaultStoreConfigs, normalizeStoreConfigs } from './data';
 
 export interface IncomeAlert {
 	label: string;
@@ -32,6 +32,9 @@ export function migrateIncomeAlerts(settings: Partial<JapanWorkSecretarySettings
 }
 
 export interface JapanWorkSecretarySettings {
+	/** Name of the secret in Obsidian's secret storage that holds the Gemini key. */
+	geminiSecretName: string;
+	// Before 1.4.0; migrated into secret storage on load.
 	geminiApiKey: string;
 	useMacKeychainForGeminiApiKey: boolean;
 	calendarName: string;
@@ -45,6 +48,7 @@ export interface JapanWorkSecretarySettings {
 	incomeAlerts: IncomeAlert[];
 	vacationPeriods: string[]; // "YYYY-MM-DD~YYYY-MM-DD"
 	eventTitlePrefix: string;
+	exportFolder: string;
 	// Legacy toggles from 1.1.x, migrated into incomeAlerts on load.
 	taxWall88k?: boolean;
 	taxWall103k?: boolean;
@@ -59,8 +63,9 @@ export interface JapanWorkSecretarySettings {
 }
 
 export const DEFAULT_SETTINGS: JapanWorkSecretarySettings = {
+	geminiSecretName: '',
 	geminiApiKey: '',
-	useMacKeychainForGeminiApiKey: true,
+	useMacKeychainForGeminiApiKey: false,
 	calendarName: 'Work',
 	storeConfigs: cloneDefaultStoreConfigs(),
 	baseWage: 1370,
@@ -72,6 +77,7 @@ export const DEFAULT_SETTINGS: JapanWorkSecretarySettings = {
 	incomeAlerts: DEFAULT_INCOME_ALERTS.map(alert => ({ ...alert })),
 	vacationPeriods: [],
 	eventTitlePrefix: '打工',
+	exportFolder: 'Japan Work Secretary',
 	overtimeRate: 1.25,
 	paidLeaveBalance: 10,
 	payrollStartDay: 21,
@@ -94,8 +100,6 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		containerEl.addClass('jws-settings');
-		containerEl.createEl('h2', { text: 'Japan Work Secretary' });
-
 		const tabHeader = containerEl.createDiv({ cls: 'rk-seg jws-settings-tabs' });
 		const generalSec = containerEl.createDiv();
 		const wageSec = containerEl.createDiv();
@@ -120,8 +124,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		show(0);
 
 		new Setting(generalSec)
-			.setName('Paper & ink style')
-			.setDesc('Paper background, ink lines and serif numbers. Off follows your Obsidian theme.')
+			.setName('Paper and ink style')
+			.setDesc('Paper background, ink lines and serif numbers. Off follows your theme.')
 			.addToggle(toggle => toggle
 				.setValue(!!this.plugin.settings.paperStyle)
 				.onChange(async (value) => {
@@ -132,39 +136,17 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 
 		// --- GENERAL TAB ---
 		new Setting(generalSec)
-			.setName('Gemini API Key')
-			.setDesc(this.plugin.settings.useMacKeychainForGeminiApiKey
-				? 'Stored in macOS Keychain; data.json keeps only a blank placeholder.'
-				: 'Stored in data.json. Keychain storage is recommended.')
-			.addText(text => {
-				text.inputEl.type = 'password';
-				text.setPlaceholder(this.plugin.getGeminiApiKey() ? 'Saved' : 'Enter your API Key')
-				.setValue('')
-				.onChange(async (value) => {
-					if (value.trim()) {
-						await this.plugin.setGeminiApiKey(value.trim());
-					}
-				});
-			});
-
-		new Setting(generalSec)
-			.setName('Store Gemini API Key in macOS Keychain')
-			.setDesc('Recommended. Existing plaintext key will be migrated on plugin load or when you paste a new key above.')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.useMacKeychainForGeminiApiKey)
-				.onChange(async (value) => {
-					this.plugin.settings.useMacKeychainForGeminiApiKey = value;
-					const existingKey = this.plugin.getGeminiApiKey();
-					if (value && existingKey) {
-						await this.plugin.setGeminiApiKey(existingKey);
-					} else {
-						await this.plugin.saveSettings();
-					}
-					this.display();
+			.setName('Gemini API key')
+			.setDesc('Optional, for reading shifts from text or photos. Choose or create a secret in Obsidian\'s secret storage; other plugins can use the same one.')
+			.addComponent(el => new SecretComponent(this.app, el)
+				.setValue(this.plugin.settings.geminiSecretName)
+				.onChange(async value => {
+					this.plugin.settings.geminiSecretName = value ?? '';
+					await this.plugin.saveSettings();
 				}));
 
 		new Setting(generalSec)
-			.setName('Apple Calendar Name')
+			.setName('macOS Calendar name')
 			.setDesc('Target calendar in macOS Calendar. Changing it syncs into the new calendar; existing events in the previous calendar are not removed automatically.')
 			.addText(text => text
 				.setPlaceholder('Work')
@@ -176,7 +158,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(generalSec)
-			.setName('Event Title Prefix')
+			.setName('Event title prefix')
 			.setDesc('Calendar events are titled "<prefix>: <store>". Existing events are matched by a hidden marker, so changing this only renames them on the next sync.')
 			.addText(text => text
 				.setPlaceholder('打工')
@@ -186,8 +168,19 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		new Setting(generalSec)
+			.setName('Export folder')
+			.setDesc('Where pay notes and .ics calendar files are saved.')
+			.addText(text => text
+				.setPlaceholder(DEFAULT_SETTINGS.exportFolder)
+				.setValue(this.plugin.settings.exportFolder)
+				.onChange(async (value) => {
+					this.plugin.settings.exportFolder = value.trim() || DEFAULT_SETTINGS.exportFolder;
+					await this.plugin.saveSettings();
+				}));
+
 		// --- WAGE RATES TAB ---
-		wageSec.createEl('h3', {text: 'Default wage bands'});
+		new Setting(wageSec).setName('Default wage bands').setHeading();
 		// One strip for the whole day, so a missing or odd band is easy to spot.
 		const band = wageSec.createDiv({ cls: 'jws-band' });
 		const drawBand = () => {
@@ -201,7 +194,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				{ name: 'Night', wage: settings.nightWage, hours: 3, cls: 'is-night' }
 			].forEach(part => {
 				const seg = strip.createDiv({ cls: `jws-band-seg ${part.cls}` });
-				seg.style.flexGrow = String(part.hours);
+				seg.setCssProps({ '--jws-grow': String(part.hours) });
 				seg.createDiv({ cls: 'jws-band-wage', text: `¥${Number(part.wage).toLocaleString()}` });
 				seg.createDiv({ cls: 'jws-band-name', text: part.name });
 			});
@@ -212,7 +205,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		wageSec.addEventListener('input', () => window.setTimeout(drawBand, 0));
 
 		new Setting(wageSec)
-			.setName('Base Wage (09:00 - 17:00)')
+			.setName('Base wage (09:00–17:00)')
 			.addText(text => text
 				.setValue(this.plugin.settings.baseWage.toString())
 				.onChange(async (value) => {
@@ -221,7 +214,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(wageSec)
-			.setName('Morning Wage (Open - 09:00)')
+			.setName('Morning wage (opening–09:00)')
 			.addText(text => text
 				.setValue(this.plugin.settings.morningWage.toString())
 				.onChange(async (value) => {
@@ -230,7 +223,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(wageSec)
-			.setName('Evening Wage (17:00 - 22:00)')
+			.setName('Evening wage (17:00–22:00)')
 			.addText(text => text
 				.setValue(this.plugin.settings.eveningWage.toString())
 				.onChange(async (value) => {
@@ -239,7 +232,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(wageSec)
-			.setName('Night Wage (22:00 - Close)')
+			.setName('Night wage (22:00–closing)')
 			.addText(text => text
 				.setValue(this.plugin.settings.nightWage.toString())
 				.onChange(async (value) => {
@@ -248,7 +241,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(wageSec)
-			.setName('Sunday / Holiday Bonus (per hour)')
+			.setName('Sunday and holiday bonus per hour')
 			.addText(text => text
 				.setValue(this.plugin.settings.holidayBonus.toString())
 				.onChange(async (value) => {
@@ -257,19 +250,19 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(wageSec)
-			.setName('Daily Commuting Allowance')
-			.setDesc('Added to your wage for each workday')
+			.setName('Daily commuting allowance')
+			.setDesc('Added to your wage for each workday.')
 			.addText(text => text
-				.setPlaceholder('e.g. 500')
+				.setPlaceholder('500')
 				.setValue(this.plugin.settings.commutingAllowance.toString())
 				.onChange(async (value) => {
 					this.plugin.settings.commutingAllowance = Number(value);
 					await this.plugin.saveSettings();
 				}));
 
-		wageSec.createEl('h3', {text: 'Store-specific Wage Bands'});
+		new Setting(wageSec).setName('Wage bands by store').setHeading();
 		wageSec.createEl('p', {
-			text: 'Each store can override the default wage bands above. Aliases are used by AI parsing and store matching.',
+			text: 'Each store can override the default wage bands above.',
 			cls: 'setting-item-description'
 		});
 
@@ -298,10 +291,10 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 
 		this.plugin.settings.storeConfigs.forEach((store, index) => {
 			const storeBox = wageSec.createDiv({ cls: 'jws-store-box' });
-			storeBox.createEl('h4', { text: store.name });
+			new Setting(storeBox).setName(store.name).setHeading();
 
 			new Setting(storeBox)
-				.setName('Store Name')
+				.setName('Store name')
 				.addText(text => text
 					.setValue(store.name)
 					.onChange(async (value) => {
@@ -313,7 +306,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 
 			new Setting(storeBox)
 				.setName('Aliases')
-				.setDesc('Comma-separated names or abbreviations that should map to this store.')
+				.setDesc('Other names or abbreviations for this store, comma separated. Used when reading schedules.')
 				.addTextArea(text => text
 					.setValue(store.aliases.join(', '))
 					.onChange(async (value) => {
@@ -323,8 +316,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					}));
 
 			new Setting(storeBox)
-				.setName('Short Label')
-				.setDesc('Used on compact calendar shift chips.')
+				.setName('Short label')
+				.setDesc('Shown on small calendar chips.')
 				.addText(text => text
 					.setValue(store.shortName || store.name)
 					.onChange(async (value) => {
@@ -333,10 +326,10 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 
 			(store.wageBands || []).forEach((band, bandIndex) => {
 				const bandBox = storeBox.createDiv({ cls: 'jws-band-box' });
-				bandBox.createEl('h5', { text: `Wage band from ${band.effectiveFrom}` });
+				new Setting(bandBox).setName(band.effectiveFrom === '0000-01-01' ? 'Wage band from the start' : `Wage band from ${band.effectiveFrom}`).setHeading();
 
 				new Setting(bandBox)
-					.setName('Effective From')
+					.setName('Effective from')
 					.addText(text => {
 						text.inputEl.type = 'date';
 						text.setValue(band.effectiveFrom === '0000-01-01' ? '' : band.effectiveFrom)
@@ -347,19 +340,19 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					});
 
 				[
-					{ key: 'baseWage', label: 'Base Wage (09:00 - 17:00)' },
-					{ key: 'morningWage', label: 'Morning Wage (Open - 09:00)' },
-					{ key: 'eveningWage', label: 'Evening Wage (17:00 - 22:00)' },
-					{ key: 'nightWage', label: 'Night Wage (22:00 - Close)' },
-					{ key: 'holidayBonus', label: 'Sunday / Holiday Bonus' },
-					{ key: 'commutingAllowance', label: 'Daily Commuting Allowance' }
+					{ key: 'baseWage', label: 'Base wage (09:00–17:00)' },
+					{ key: 'morningWage', label: 'Morning wage (opening–09:00)' },
+					{ key: 'eveningWage', label: 'Evening wage (17:00–22:00)' },
+					{ key: 'nightWage', label: 'Night wage (22:00–closing)' },
+					{ key: 'holidayBonus', label: 'Sunday and holiday bonus per hour' },
+					{ key: 'commutingAllowance', label: 'Daily commuting allowance' }
 				].forEach(({ key, label }) => {
 					new Setting(bandBox)
 						.setName(label)
 						.addText(text => text
-							.setValue(String((band as any)[key] ?? 0))
+							.setValue(String(band[key as keyof WageBandConfig] ?? 0))
 							.onChange(async (value) => {
-								await updateWageBand(index, bandIndex, { [key]: Number(value) } as Partial<EffectiveWageBandConfig>);
+								await updateWageBand(index, bandIndex, { [key]: Number(value) });
 							}));
 				});
 
@@ -380,7 +373,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 
 			new Setting(storeBox)
 				.setName('Add wage band')
-				.setDesc('Use this when hourly wages change from a specific date.')
+				.setDesc('When your hourly wage changes from a certain date. Earlier shifts keep the old rates.')
 				.addButton(button => button
 					.setButtonText('Add')
 					.onClick(async () => {
@@ -397,11 +390,11 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		});
 
 		// --- COMPLIANCE TAB ---
-		legalSec.createEl('h3', {text: 'Calendar & Cycle Settings'});
+		new Setting(legalSec).setName('Payroll and holidays').setHeading();
 
 		new Setting(legalSec)
-			.setName('Payroll Cycle Starting Day')
-			.setDesc('e.g., 21 for a 21st to 20th cycle. Use 1 for Natural Month.')
+			.setName('Payroll month starts on day')
+			.setDesc('For example 21 for a 21st-to-20th cycle. Use 1 for calendar months.')
 			.addText(text => text
 				.setPlaceholder('21')
 				.setValue((this.plugin.settings.payrollStartDay || 21).toString())
@@ -411,8 +404,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(legalSec)
-			.setName('Custom Holidays')
-			.setDesc('Enter dates (YYYY-MM-DD) separated by newlines to add custom rest days.')
+			.setName('Extra holidays')
+			.setDesc('One date (YYYY-MM-DD) per line, paid like a public holiday.')
 			.addTextArea(text => text
 				.setPlaceholder('2026-05-01\n2026-12-31')
 				.setValue((this.plugin.settings.customHolidays || []).join('\n'))
@@ -423,11 +416,11 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 
 		const holidayUpdatedText = this.plugin.settings.holidayCacheUpdatedAt
 			? new Date(this.plugin.settings.holidayCacheUpdatedAt).toLocaleString()
-			: 'Never';
+			: 'never';
 
 		new Setting(legalSec)
-			.setName('Japanese Holiday Cache')
-			.setDesc(`Auto-fetched from holidays-jp.github.io. Last updated: ${holidayUpdatedText}`)
+			.setName('Japanese public holidays')
+			.setDesc(`Downloaded from holidays-jp.github.io and cached for a week. Last updated: ${holidayUpdatedText}`)
 			.addButton(button => button
 				.setButtonText('Refresh now')
 				.onClick(async () => {
@@ -435,7 +428,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					this.display();
 				}));
 
-		legalSec.createEl('h3', {text: 'Income Alerts'});
+		new Setting(legalSec).setName('Income alerts').setHeading();
 		legalSec.createEl('p', {
 			text: 'Income thresholds for tax, social insurance and dependants change from year to year. Enter the amounts that apply to you this year. The plugin only reminds you; it does not work out tax.',
 			cls: 'setting-item-description'
@@ -443,7 +436,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		this.plugin.settings.incomeAlerts.forEach((alert, index) => {
 			new Setting(legalSec)
 				.setName(alert.label || `Alert ${index + 1}`)
-				.setDesc(alert.period === 'annual' ? 'Income for the calendar year (Jan–Dec)' : 'Income for the current month')
+				.setDesc(alert.period === 'annual' ? 'Income for the calendar year (January to December).' : 'Income for the current month.')
 				.addText(text => text
 					.setPlaceholder('Name')
 					.setValue(alert.label)
@@ -479,7 +472,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 
 		new Setting(legalSec)
 			.setName('Long vacations (8 hours a day)')
-			.setDesc('One period per line, e.g. 2026-08-01~2026-09-30. These days are checked against 8 hours each instead of the 28-hour week. Use the dates your school announces.')
+			.setDesc('One period per line, such as 2026-08-01~2026-09-30. These days are checked against 8 hours each instead of the 28-hour week. Use the dates in your school calendar; days you simply have no class do not count.')
 			.addTextArea(text => text
 				.setPlaceholder('2026-08-01~2026-09-30')
 				.setValue((this.plugin.settings.vacationPeriods || []).join('\n'))
@@ -488,11 +481,11 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		legalSec.createEl('h3', {text: 'Legal & Overtime Settings'});
+		new Setting(legalSec).setName('Overtime and leave').setHeading();
 
 		new Setting(legalSec)
-			.setName('Overtime Rate')
-			.setDesc('Multiplier for work over 8h/day or 40h/week (Standard: 1.25)')
+			.setName('Overtime rate')
+			.setDesc('Multiplier for work over 8 hours a day or 40 hours a week. The legal minimum is 1.25.')
 			.addText(text => text
 				.setValue(this.plugin.settings.overtimeRate.toString())
 				.onChange(async (value) => {
@@ -501,8 +494,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(legalSec)
-			.setName('Paid Leave (有給休暇) Balance')
-			.setDesc('Number of days available')
+			.setName('Paid leave balance')
+			.setDesc('Days of paid leave (有給休暇) you have left.')
 			.addText(text => text
 				.setValue(this.plugin.settings.paidLeaveBalance.toString())
 				.onChange(async (value) => {

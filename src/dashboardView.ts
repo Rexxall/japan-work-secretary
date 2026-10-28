@@ -1,10 +1,10 @@
-import { ItemView, WorkspaceLeaf, Notice, Menu, requestUrl, Modal, App, setIcon } from 'obsidian';
-import JapanWorkSecretaryPlugin from './main';
+import { ItemView, WorkspaceLeaf, Notice, Menu, requestUrl, Modal, App, setIcon, moment } from 'obsidian';
+import JapanWorkSecretaryPlugin, { errorMessage } from './main';
 import { HoursTracker, parseVacationPeriods } from './hoursTracker';
 import { WageCalculator } from './wageCalculator';
 import { HolidayUtility } from './holidayUtility';
 import { ExchangeRateSnapshot, Shift, ShiftTemplatePattern, buildRecurringInstanceId, getStoreColorClass, getStoreShortName, getStoreWageBand, normalizeStoreConfigs, parseRecurringInstanceId } from './data';
-import moment from 'moment';
+import type { Moment } from 'moment';
 import { PolicyExplanationModal } from './policyModal';
 
 export const DASHBOARD_VIEW_TYPE = 'japan-work-dashboard-view';
@@ -17,8 +17,8 @@ interface RmbExchangeRateDisplay {
 export class DashboardView extends ItemView {
 	plugin: JapanWorkSecretaryPlugin;
     viewMode: 'month' | 'week' = 'month';
-    currentViewDate: moment.Moment = moment();
-    selectedDate: moment.Moment = moment();
+    currentViewDate: Moment = moment();
+    selectedDate: Moment = moment();
     editingRecurringId: string | null = null;
     
     // Weekly Pattern State
@@ -46,7 +46,7 @@ export class DashboardView extends ItemView {
 	}
 
 	getDisplayText() {
-		return 'Work Secretary Dashboard';
+		return 'Work dashboard';
 	}
 
 	async onOpen() {
@@ -81,7 +81,7 @@ export class DashboardView extends ItemView {
         const response = await requestUrl({
             url: 'https://api.exchangerate-api.com/v4/latest/JPY'
         });
-        const rate = Number(response.json?.rates?.CNY);
+        const rate = Number((response.json as { rates?: { CNY?: unknown } } | null)?.rates?.CNY);
         if (!Number.isFinite(rate) || rate <= 0) return null;
 
         return {
@@ -98,23 +98,24 @@ export class DashboardView extends ItemView {
         const response = await requestUrl({
             url: `https://api.frankfurter.dev/v2/rate/JPY/CNY${query}`
         });
-        const rate = Number(response.json?.rate);
+        const body = response.json as { rate?: unknown; date?: unknown } | null;
+        const rate = Number(body?.rate);
         if (!Number.isFinite(rate) || rate <= 0) return null;
 
         return {
             date: date || moment().format('YYYY-MM-DD'),
             rate,
             provider: 'Frankfurter',
-            providerDate: typeof response.json?.date === 'string' ? response.json.date : date,
+            providerDate: typeof body?.date === 'string' ? body.date : date,
             fetchedAt: new Date().toISOString()
         };
     }
 
-    private getPayrollPayDate(periodEnd: moment.Moment): moment.Moment {
+    private getPayrollPayDate(periodEnd: Moment): Moment {
         return periodEnd.clone().add(1, 'month').date(5).startOf('day');
     }
 
-    private getRmbExchangeRateForPeriod(periodEnd: moment.Moment): RmbExchangeRateDisplay {
+    private getRmbExchangeRateForPeriod(periodEnd: Moment): RmbExchangeRateDisplay {
         const payDate = this.getPayrollPayDate(periodEnd);
         const payDateKey = payDate.format('YYYY-MM-DD');
         const today = moment().startOf('day');
@@ -176,7 +177,7 @@ export class DashboardView extends ItemView {
         });
     }
 
-    private getPeriodForDate(date: moment.Moment): { start: moment.Moment, end: moment.Moment, label: string } {
+    private getPeriodForDate(date: Moment): { start: Moment, end: Moment, label: string } {
         if (this.isPayrollView) {
             const cutoffDay = this.plugin.settings.payrollStartDay || 21;
             const pStart = date.date() >= cutoffDay
@@ -197,7 +198,7 @@ export class DashboardView extends ItemView {
         };
     }
 
-    private getVisibleSyncPeriod(): { start: moment.Moment, end: moment.Moment, label: string } {
+    private getVisibleSyncPeriod(): { start: Moment, end: Moment, label: string } {
         if (this.viewMode === 'week') {
             const start = this.currentViewDate.clone().startOf('isoWeek');
             const end = this.currentViewDate.clone().endOf('isoWeek');
@@ -211,7 +212,7 @@ export class DashboardView extends ItemView {
         return this.getPeriodForDate(this.currentViewDate);
     }
 
-    private getPreviousPeriod(start: moment.Moment, end: moment.Moment): { start: moment.Moment, end: moment.Moment } {
+    private getPreviousPeriod(start: Moment, end: Moment): { start: Moment, end: Moment } {
         if (this.isPayrollView) {
             return {
                 start: start.clone().subtract(1, 'month'),
@@ -225,7 +226,7 @@ export class DashboardView extends ItemView {
         };
     }
 
-    private getWorkMonthPeriod(date: moment.Moment): { start: moment.Moment, end: moment.Moment, label: string } {
+    private getWorkMonthPeriod(date: Moment): { start: Moment, end: Moment, label: string } {
         const cutoffDay = this.plugin.settings.payrollStartDay || 21;
         const start = date.date() >= cutoffDay
             ? date.clone().date(cutoffDay)
@@ -238,7 +239,7 @@ export class DashboardView extends ItemView {
         };
     }
 
-    private getNextWorkMonthPeriod(date: moment.Moment): { start: moment.Moment, end: moment.Moment, label: string } {
+    private getNextWorkMonthPeriod(date: Moment): { start: Moment, end: Moment, label: string } {
         const current = this.getWorkMonthPeriod(date);
         const start = current.start.clone().add(1, 'month');
         const end = current.end.clone().add(1, 'month');
@@ -304,13 +305,13 @@ export class DashboardView extends ItemView {
         return aStart <= bEnd && bStart <= aEnd;
     }
 
-    private async applyTemplateToWorkMonth(patterns: ShiftTemplatePattern[], period: { start: moment.Moment, end: moment.Moment }): Promise<number> {
+    private async applyTemplateToWorkMonth(patterns: ShiftTemplatePattern[], period: { start: Moment, end: Moment }): Promise<number> {
         const start = period.start.format('YYYY-MM-DD');
         const end = period.end.format('YYYY-MM-DD');
         return this.createRecurringRulesFromPatterns(patterns, start, end);
     }
 
-    private async saveTemplateFromRange(start: moment.Moment, end: moment.Moment, name: string): Promise<number> {
+    private async saveTemplateFromRange(start: Moment, end: Moment, name: string): Promise<number> {
         const shifts = this.getShiftsInRange(start, end);
         const patternMap = new Map<string, ShiftTemplatePattern>();
 
@@ -365,7 +366,7 @@ export class DashboardView extends ItemView {
     /**
      * Helper to get all shifts (one-off + recurring expanded) for a specific range
      */
-    getShiftsInRange(start: moment.Moment, end: moment.Moment) {
+    getShiftsInRange(start: Moment, end: Moment) {
         const calculator = new WageCalculator(this.plugin.settings);
         
         // Manual shifts
@@ -476,10 +477,10 @@ export class DashboardView extends ItemView {
                 period.end,
                 (start, end) => this.getShiftsInRange(start, end),
                 (shifts) => this.calculateTotalSum(shifts),
-                !!this.plugin.settings.paperStyle
+                this.plugin
             ).open();
         });
-        const addBtn = actions.createEl('button', { text: '+ Shift', cls: 'mod-cta' });
+        const addBtn = actions.createEl('button', { text: 'Add shift', cls: 'mod-cta' });
         addBtn.onClickEvent(() => {
             new QuickAddShiftModal(this.app, this.selectedDate.format('YYYY-MM-DD'), this.plugin, () => this.render(), (a, b) => this.getShiftsInRange(a, b)).open();
         });
@@ -664,8 +665,8 @@ export class DashboardView extends ItemView {
 
     private renderIncomeAnalyticsCard(
         container: HTMLElement,
-        calcStart: moment.Moment,
-        calcEnd: moment.Moment,
+        calcStart: Moment,
+        calcEnd: Moment,
         displayLabel: string,
         monthlyWage: number,
         currentShifts: Shift[]
@@ -715,7 +716,7 @@ export class DashboardView extends ItemView {
         const shareBar = card.createDiv({ cls: 'jws-store-share' });
         storeRows.forEach(([storeName, wage]) => {
             const segment = shareBar.createDiv({ cls: `jws-store-seg ${getStoreColorClass(this.plugin.settings, storeName)}` });
-            segment.style.flexBasis = `${(wage / storeTotal) * 100}%`;
+            segment.setCssProps({ '--jws-share': `${(wage / storeTotal) * 100}%` });
             segment.setAttribute('title', `${getStoreShortName(this.plugin.settings, storeName)}: ¥${wage.toLocaleString()}`);
         });
         const legend = card.createDiv({ cls: 'jws-store-legend' });
@@ -751,11 +752,11 @@ export class DashboardView extends ItemView {
             if (capturedDate.isSame(this.selectedDate, 'day')) dayEl.addClass('is-selected');
             if (capturedDate.month() !== this.currentViewDate.month()) dayEl.addClass('is-other-month');
             if (capturedDate.isoWeekday() >= 6) dayEl.addClass('is-weekend');
-            if (showPeak && dateStr >= peak!.start && dateStr <= peak!.end) {
+            if (showPeak && peak && dateStr >= peak.start && dateStr <= peak.end) {
                 dayEl.addClass('in-peak');
-                if (peak!.isOverLimit) dayEl.addClass('is-over');
-                if (dateStr === peak!.start) dayEl.addClass('peak-start');
-                if (dateStr === peak!.end) dayEl.addClass('peak-end');
+                if (peak.isOverLimit) dayEl.addClass('is-over');
+                if (dateStr === peak.start) dayEl.addClass('peak-start');
+                if (dateStr === peak.end) dayEl.addClass('peak-end');
             }
 
             dayEl.createDiv({ text: capturedDate.format('D'), cls: 'jws-day-number' });
@@ -800,8 +801,9 @@ export class DashboardView extends ItemView {
                     this.selectedDate = capturedDate.clone();
                 });
 
-                shiftEl.addEventListener('dblclick', async (e) => {
+                shiftEl.addEventListener('dblclick', (e) => {
                     e.stopPropagation();
+                    void (async () => {
                     if (!this.plugin.ensureScheduleMutationAllowed()) return;
                     const recurringIdParts = parseRecurringInstanceId(s.id);
                     if (recurringIdParts) {
@@ -814,7 +816,7 @@ export class DashboardView extends ItemView {
                             }
                             const calculator = new WageCalculator(this.plugin.settings);
                             const res = calculator.calculateShiftWage(dateStr, rs.startTime, rs.endTime, false, undefined, rs.storeName);
-                            const newShift: any = {
+                            const newShift: Shift = {
                                 id: crypto.randomUUID(),
                                 date: dateStr,
                                 startTime: rs.startTime,
@@ -834,6 +836,7 @@ export class DashboardView extends ItemView {
                             new EditShiftModal(this.plugin.app, shift, this.plugin, () => this.render()).open();
                         }
                     }
+                })();
                 });
             });
 
@@ -920,7 +923,7 @@ export class DashboardView extends ItemView {
 
             const calculator = new WageCalculator(this.plugin.settings);
             const res = calculator.calculateShiftWage(date, start, end, false, customBreak, store);
-            const newShift: any = {
+            const newShift: Shift = {
                 id: crypto.randomUUID(),
                 date,
                 startTime: start,
@@ -939,7 +942,7 @@ export class DashboardView extends ItemView {
                 await this.plugin.syncShiftToCalendar(newShift);
                 new Notice('Synced to calendar.');
             } catch (e) {
-                new Notice(`Calendar sync failed: ${e.message}`);
+                new Notice(`Calendar sync failed: ${errorMessage(e)}`);
             }
 
             this.render();
@@ -996,13 +999,11 @@ export class DashboardView extends ItemView {
                 setIcon(delBtn, 'trash-2');
 
                 editIcon.onClickEvent(() => { this.editingRecurringId = rs.id; this.render(); });
-                delBtn.onClickEvent(async () => {
+                armDelete(delBtn, 'Delete recurring shift', async () => {
                     if (!this.plugin.ensureScheduleMutationAllowed()) return;
-                    if (confirm("Delete this recurring shift?")) {
-                        this.plugin.shiftData.recurringShifts = this.plugin.shiftData.recurringShifts.filter(r => r.id !== rs.id);
-                        await this.plugin.saveDataStore();
-                        this.render();
-                    }
+                    this.plugin.shiftData.recurringShifts = this.plugin.shiftData.recurringShifts.filter(r => r.id !== rs.id);
+                    await this.plugin.saveDataStore();
+                    this.render();
                 });
             }
         });
@@ -1066,8 +1067,8 @@ export class DashboardView extends ItemView {
         storeSel.onchange = () => this.weeklyPatternStoreName = storeSel.value;
 
         const dateRow = batchControls.createDiv({ cls: 'batch-date-row' });
-        const startD = dateRow.createEl('input', { attr: { type: 'date', value: this.batchStartDate, placeholder: 'Start Date' } });
-        const endD = dateRow.createEl('input', { attr: { type: 'date', value: this.batchEndDate, placeholder: 'End Date' } });
+        const startD = dateRow.createEl('input', { attr: { type: 'date', value: this.batchStartDate, placeholder: 'Start date' } });
+        const endD = dateRow.createEl('input', { attr: { type: 'date', value: this.batchEndDate, placeholder: 'End date' } });
         
         startD.onchange = () => this.batchStartDate = startD.value;
         endD.onchange = () => this.batchEndDate = endD.value;
@@ -1132,7 +1133,7 @@ export class DashboardView extends ItemView {
             const actions = row.createDiv({ cls: 'template-item-actions' });
             const loadBtn = actions.createEl('button', { text: 'Load' });
             const applyBtn = actions.createEl('button', { text: 'Range' });
-            const thisMonthBtn = actions.createEl('button', { text: 'This Work Month' });
+            const thisMonthBtn = actions.createEl('button', { text: 'This work month' });
             const nextMonthBtn = actions.createEl('button', { text: 'Next Work Month' });
             const deleteBtn = actions.createEl('button', { cls: 'clickable-icon jws-danger-icon', attr: { 'aria-label': 'Delete template' } });
             setIcon(deleteBtn, 'trash-2');
@@ -1172,8 +1173,7 @@ export class DashboardView extends ItemView {
                 this.render();
             });
 
-            deleteBtn.onClickEvent(async () => {
-                if (!confirm(`Delete template "${template.name}"?`)) return;
+            armDelete(deleteBtn, `Delete template ${template.name}`, async () => {
                 this.plugin.shiftData.shiftTemplates = templates.filter(t => t.id !== template.id);
                 await this.plugin.saveDataStore();
                 this.render();
@@ -1181,14 +1181,14 @@ export class DashboardView extends ItemView {
         });
     }
 
-    private handleShiftContextMenu(e: MouseEvent, s: any) {
+    private handleShiftContextMenu(e: MouseEvent, s: Shift) {
         const menu = new Menu();
         const recurringParts = parseRecurringInstanceId(s.id);
         const isRecurring = recurringParts !== null;
 
         if (isRecurring) {
             menu.addItem((item) => {
-                item.setTitle('Convert instance to Manual & Edit')
+                item.setTitle('Edit this occurrence only')
                     .setIcon('pencil')
                     .onClick(async () => {
                         if (!this.plugin.ensureScheduleMutationAllowed()) return;
@@ -1202,7 +1202,7 @@ export class DashboardView extends ItemView {
                             }
                             const calculator = new WageCalculator(this.plugin.settings);
                             const res = calculator.calculateShiftWage(s.date, rs.startTime, rs.endTime, false, undefined, rs.storeName);
-                            const newShift: any = {
+                            const newShift: Shift = {
                                 id: crypto.randomUUID(),
                                 date: s.date,
                                 startTime: rs.startTime,
@@ -1302,18 +1302,18 @@ export class DashboardView extends ItemView {
         menu.showAtMouseEvent(e);
     }
 
-    private getMonthlyWage(start: moment.Moment, end: moment.Moment): number {
+    private getMonthlyWage(start: Moment, end: Moment): number {
         const shifts = this.getShiftsInRange(start, end);
         return this.calculateTotalSum(shifts);
     }
 
-    private getAnnualWage(start: moment.Moment, end: moment.Moment): number {
+    private getAnnualWage(start: Moment, end: Moment): number {
         const allShifts = this.getShiftsInRange(start, end);
         return this.calculateTotalSum(allShifts);
     }
 
-    private calculateTotalSum(shifts: any[]): number {
-        const dayGroups: { [key: string]: any[] } = {};
+    private calculateTotalSum(shifts: Shift[]): number {
+        const dayGroups: { [key: string]: Shift[] } = {};
         for (const s of shifts) {
             if (!dayGroups[s.date]) dayGroups[s.date] = [];
             dayGroups[s.date].push(s);
@@ -1458,18 +1458,18 @@ export class DashboardView extends ItemView {
 }
 
 class ShiftShareModal extends Modal {
-    private start: moment.Moment;
-    private end: moment.Moment;
-    private getShifts: (start: moment.Moment, end: moment.Moment) => any[];
-    private calculateTotal: (shifts: any[]) => number;
+    private start: Moment;
+    private end: Moment;
+    private getShifts: (start: Moment, end: Moment) => Shift[];
+    private calculateTotal: (shifts: Shift[]) => number;
 
     constructor(
         app: App,
-        start: moment.Moment,
-        end: moment.Moment,
-        getShifts: (start: moment.Moment, end: moment.Moment) => any[],
-        calculateTotal: (shifts: any[]) => number,
-        private paper = false
+        start: Moment,
+        end: Moment,
+        getShifts: (start: Moment, end: Moment) => Shift[],
+        calculateTotal: (shifts: Shift[]) => number,
+        private plugin: JapanWorkSecretaryPlugin
     ) {
         super(app);
         this.start = start.clone();
@@ -1482,8 +1482,8 @@ class ShiftShareModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
         this.modalEl.addClass('jws-modal');
-        this.modalEl.toggleClass('rk-paper', this.paper);
-        this.titleEl.setText('Share schedule');
+        this.modalEl.toggleClass('rk-paper', !!this.plugin.settings.paperStyle);
+        this.titleEl.setText('Share or export');
 
         const form = contentEl.createDiv({ cls: 'jws-form-row' });
         const startInput = field(form, 'Start date').createEl('input', { attr: { type: 'date', value: this.start.format('YYYY-MM-DD') } });
@@ -1503,10 +1503,34 @@ class ShiftShareModal extends Modal {
         updatePreview();
 
         const actions = contentEl.createDiv({ cls: 'rk-modal-foot' });
-        actions.createDiv({ cls: 'rk-foot-note', text: 'Text for a chat message, or an image.' });
+        actions.createDiv({ cls: 'rk-foot-note', text: 'Text for a chat message, an image, a pay note, or a calendar file.' });
         const closeBtn = actions.createEl('button', { text: 'Close' });
+        const noteBtn = actions.createEl('button', { text: 'Save pay note', attr: { 'aria-label': 'Save a note with every shift and the pay for this range, to compare with your payslip' } });
+        const icsBtn = actions.createEl('button', { text: 'Export .ics', attr: { 'aria-label': 'Save a calendar file for Google Calendar, Outlook or your phone' } });
         const imageBtn = actions.createEl('button', { text: 'Download PNG' });
         const copyBtn = actions.createEl('button', { text: 'Copy text', cls: 'mod-cta' });
+
+        const range = (): { start: Moment, end: Moment } | null => {
+            const start = moment(startInput.value, 'YYYY-MM-DD');
+            const end = moment(endInput.value, 'YYYY-MM-DD');
+            if (!start.isValid() || !end.isValid() || end.isBefore(start, 'day')) {
+                new Notice('Pick a valid date range first.');
+                return null;
+            }
+            return { start, end };
+        };
+        noteBtn.onClickEvent(async () => {
+            const r = range();
+            if (!r) return;
+            const shifts = this.getShifts(r.start, r.end);
+            await this.plugin.savePayNote(shifts, r.start.format('YYYY-MM-DD'), r.end.format('YYYY-MM-DD'), this.calculateTotal(shifts));
+            this.close();
+        });
+        icsBtn.onClickEvent(async () => {
+            const r = range();
+            if (!r) return;
+            await this.plugin.exportIcs(this.getShifts(r.start, r.end));
+        });
 
         copyBtn.onClickEvent(async () => {
             await this.copyText(preview.value);
@@ -1522,7 +1546,7 @@ class ShiftShareModal extends Modal {
         closeBtn.onClickEvent(() => this.close());
     }
 
-    private buildShareText(start: moment.Moment, end: moment.Moment): string {
+    private buildShareText(start: Moment, end: Moment): string {
         if (!start.isValid() || !end.isValid()) {
             return 'Invalid date range.';
         }
@@ -1545,7 +1569,7 @@ class ShiftShareModal extends Modal {
             return lines.join('\n');
         }
 
-        const grouped: { [date: string]: any[] } = {};
+        const grouped: { [date: string]: Shift[] } = {};
         shifts.forEach(shift => {
             grouped[shift.date] = grouped[shift.date] || [];
             grouped[shift.date].push(shift);
@@ -1567,22 +1591,10 @@ class ShiftShareModal extends Modal {
     }
 
     private async copyText(text: string) {
-        if (navigator.clipboard?.writeText) {
-            await navigator.clipboard.writeText(text);
-            return;
-        }
-
-        const temp = document.body.createEl('textarea');
-        temp.value = text;
-        temp.style.position = 'fixed';
-        temp.style.opacity = '0';
-        document.body.appendChild(temp);
-        temp.select();
-        document.execCommand('copy');
-        temp.remove();
+        await navigator.clipboard.writeText(text);
     }
 
-    private async downloadImage(text: string, start: moment.Moment, end: moment.Moment) {
+    private async downloadImage(text: string, start: Moment, end: Moment) {
         const lines = text.split('\n');
         const width = 900;
         const height = Math.max(260, 122 + lines.length * 30);
@@ -1620,7 +1632,7 @@ class ShiftShareModal extends Modal {
             const url = URL.createObjectURL(svgBlob);
             const img = new Image();
             img.onload = () => {
-                const canvas = document.createElement('canvas');
+                const canvas = createEl('canvas');
                 canvas.width = width;
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
@@ -1649,13 +1661,13 @@ class ShiftShareModal extends Modal {
 
     private downloadBlob(blob: Blob, fileName: string) {
         const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
+        const link = createEl('a');
         link.href = url;
         link.download = fileName;
         document.body.appendChild(link);
         link.click();
         link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
     private escapeXml(value: string): string {
@@ -1672,10 +1684,29 @@ class ShiftShareModal extends Modal {
     }
 }
 
+/**
+ * Deleting takes a second click within four seconds, like the rest of the plugin,
+ * instead of a browser dialog.
+ */
+function armDelete(button: HTMLElement, label: string, onDelete: () => Promise<void>) {
+    let armed = false;
+    button.setAttr('aria-label', label);
+    button.onClickEvent(() => {
+        if (!armed) {
+            armed = true;
+            button.addClass('is-armed');
+            button.setAttr('aria-label', 'Click again to delete');
+            window.setTimeout(() => { armed = false; button.removeClass('is-armed'); button.setAttr('aria-label', label); }, 4000);
+            return;
+        }
+        void onDelete();
+    });
+}
+
 // ─── Shift modals ─────────────────────────────────────────────────────────────
 
 /** Shared look for the plugin's modals: own class, optional paper style, title in the header. */
-function prepareModal(modal: Modal, plugin: any, title: string) {
+function prepareModal(modal: Modal, plugin: JapanWorkSecretaryPlugin, title: string) {
     modal.modalEl.addClass('jws-modal');
     modal.modalEl.toggleClass('rk-paper', !!plugin.settings.paperStyle);
     modal.titleEl.setText(title);
@@ -1688,11 +1719,11 @@ function field(parent: HTMLElement, label: string): HTMLElement {
 }
 
 class EditShiftModal extends Modal {
-    private shift: any;
-    private plugin: any;
+    private shift: Shift;
+    private plugin: JapanWorkSecretaryPlugin;
     private onSave: () => void;
 
-    constructor(app: App, shift: any, plugin: any, onSave: () => void) {
+    constructor(app: App, shift: Shift, plugin: JapanWorkSecretaryPlugin, onSave: () => void) {
         super(app);
         this.shift = shift;
         this.plugin = plugin;
@@ -1750,7 +1781,7 @@ class EditShiftModal extends Modal {
                 await this.plugin.syncShiftToCalendar(this.shift);
                 new Notice('Synced to calendar.');
             } catch (e) {
-                new Notice(`Calendar sync failed: ${e.message}`);
+                new Notice(`Calendar sync failed: ${errorMessage(e)}`);
             }
 
             this.close();
@@ -1775,11 +1806,11 @@ function renderWagePreview(el: HTMLElement, wage: number, hours: number) {
 
 class QuickAddShiftModal extends Modal {
     private date: string;
-    private plugin: any;
+    private plugin: JapanWorkSecretaryPlugin;
     private onSave: () => void;
-    private getShifts?: (start: moment.Moment, end: moment.Moment) => Shift[];
+    private getShifts?: (start: Moment, end: Moment) => Shift[];
 
-    constructor(app: App, date: string, plugin: any, onSave: () => void, getShifts?: (start: moment.Moment, end: moment.Moment) => Shift[]) {
+    constructor(app: App, date: string, plugin: JapanWorkSecretaryPlugin, onSave: () => void, getShifts?: (start: Moment, end: Moment) => Shift[]) {
         super(app);
         this.date = date;
         this.plugin = plugin;
@@ -1854,7 +1885,7 @@ class QuickAddShiftModal extends Modal {
             const start = startInput.value;
             const end = endInput.value;
 
-            const hasOverlap = this.plugin.shiftData.shifts.some((s: any) => {
+            const hasOverlap = this.plugin.shiftData.shifts.some((s: Shift) => {
                 if (s.date !== this.date) return false;
                 return (start < s.endTime) && (end > s.startTime);
             });
@@ -1887,7 +1918,7 @@ class QuickAddShiftModal extends Modal {
                 await this.plugin.syncShiftToCalendar(newShift);
                 new Notice('Synced to calendar.');
             } catch (e) {
-                new Notice(`Calendar sync failed: ${e.message}`);
+                new Notice(`Calendar sync failed: ${errorMessage(e)}`);
             }
 
             this.close();

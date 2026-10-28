@@ -27,7 +27,7 @@ Japan Work Secretary keeps the schedule in your vault, works out the pay the way
 
 - **Month and week views**, each store in its own colour.
 - **Add shifts by hand, or as recurring shifts** (for example every Tuesday 17:00–22:00).
-- **Read a schedule from text or a photo.** Select a message, or open a note with a screenshot of the roster, and the shifts are extracted for you to review before saving (optional, uses your own Gemini API key).
+- **Read a schedule from text or a photo.** Select a message, or open a note with a screenshot of the roster. The shifts the AI found open in a check list: fix a date or time, untick a row, and see which rows are already saved or would break the 28-hour or 8-hour rule. Nothing is saved until you press Save (optional, uses your own Gemini API key).
 
 ### Pay
 
@@ -49,6 +49,11 @@ Japan Work Secretary keeps the schedule in your vault, works out the pay the way
 
 - **Sync to macOS Calendar.** Smart sync only writes shifts that changed since the last sync; a full sync rewrites everything in a range. Events carry a hidden marker, so they are updated in place instead of duplicated.
 - **Clean up.** When you sync, events whose shifts you have deleted are removed from the calendar.
+- **Any other calendar:** *Share or export → Export .ics* saves a calendar file for Google Calendar, Outlook or your phone. Events keep the shift's ID, so importing again updates them.
+
+### Pay notes
+
+*Share or export → Save pay note* writes a Markdown note for the chosen range (by default the payroll month on screen): every shift with its hours and pay, totals by store, and the period total including overtime. Keep it next to your payslip (給与明細) to check it.
 
 ### Paper & ink style (optional)
 
@@ -58,27 +63,32 @@ Turn it on in settings for a paper-and-ink look. Off by default, so the dashboar
 
 ## Install
 
-1. Download `japan-work-secretary-1.2.0.zip` from the latest release.
-2. Unzip it into `<your vault>/.obsidian/plugins/japan-work-secretary/` (the folder should contain `main.js`, `manifest.json`, `styles.css`).
-3. In Obsidian: **Settings → Community plugins → reload**, then enable **Japan Work Secretary**.
-4. Open the dashboard from the command palette: **Open Secretary Dashboard**.
+**From Obsidian (once listed):** Settings → Community plugins → Browse, search for **Japan Work Secretary**.
 
-Desktop only. Calendar sync needs macOS.
+**Manually:**
+
+1. Download `main.js`, `manifest.json` and `styles.css` from the latest release.
+2. Put them in `<your vault>/.obsidian/plugins/japan-work-secretary/`.
+3. In Obsidian: **Settings → Community plugins → reload**, then enable **Japan Work Secretary**.
+4. Open the dashboard from the command palette: **Japan Work Secretary: Open dashboard**.
+
+Desktop only, Obsidian 1.11.4 or later. Calendar sync needs macOS; the .ics export works everywhere.
 
 ### First-time setup
 
-1. **Settings → Wage Rates:** rename *Store A*, set its hourly rates, add more stores if you have them.
-2. **Settings → Compliance & Cycle:** add your school's long vacation dates and any income alert lines you want.
-3. Optional: paste a Gemini API key to read schedules from text or photos.
+1. **Settings → Wage rates:** rename *Store A*, set its hourly rates, add more stores if you have them.
+2. **Settings → Compliance & cycle:** add your school's long vacation dates and any income alert lines you want.
+3. Optional: under **Gemini API key**, choose or create a secret to read schedules from text or photos.
 
 ## Privacy
 
 | What | Where it lives |
 |---|---|
 | Shifts, stores, wages, settings | `data.json` in this plugin's folder in your vault |
-| Gemini API key | macOS Keychain by default; plugin data if you turn that off |
+| Gemini API key | Obsidian's secret storage on this device; the plugin's settings keep only the secret's name |
 | Text or image you choose to parse | Sent to Google Gemini, only when you run a parse command |
-| Calendar events | Your local macOS Calendar, through AppleScript |
+| Calendar events | Your local macOS Calendar, through AppleScript; or an .ics file in your vault when you export one |
+| Pay notes | Markdown notes in the export folder you choose |
 | Public holidays | Downloaded from `holidays-jp.github.io` |
 | JPY → CNY rate (shown next to wages) | Downloaded from `exchangerate-api.com`, `frankfurter.dev` as a fallback |
 
@@ -86,17 +96,18 @@ There is no account and no server of our own.
 
 ## How it works
 
-- **28-hour check:** for the selected day, the plugin looks at all seven 7-day windows that include it and reports the largest total. Paid leave and vacation days are not counted toward the weekly limit; vacation days are checked against 8 hours each.
+- **28-hour check:** the Immigration Services Agency's page on work permission for students says "１週について２８時間以内（教育機関の長期休業期間にあっては、１日について８時間以内）" ([source](https://www.moj.go.jp/isa/applications/procedures/nyuukokukanri07_00003.html), checked 29 October 2026). The page does not say which day a week starts on, so the plugin takes the cautious reading: for the selected day it looks at all seven 7-day windows that include it and reports the largest total. Paid leave and vacation days are not counted toward the weekly limit; vacation days are checked against 8 hours each. Long vacations are the periods in your school's calendar, not days you simply have no class.
 - **Wage bands:** each store keeps a list of rate tables with an `effectiveFrom` date. A shift uses the newest table that started on or before its date.
 - **Calendar sync:** every shift gets a fingerprint made only of the fields that appear in the event (date, times, store, calendar, title). Changing a wage does not rewrite your calendar; changing a time does. AppleScript receives values as arguments rather than as text pasted into the script, so store names with quotes or non-Latin characters are safe.
-- **Keychain:** the API key is stored with macOS's `security` tool under the service name of this plugin.
+- **API key:** kept in Obsidian's secret storage (Settings → Gemini API key). Several plugins can share one secret, so you paste a Gemini key once. Versions before 1.4.0 kept the key in the macOS Keychain or in plugin data; 1.4.0 copies it into secret storage on first start, under the name `gemini-api-key`, and clears it from plugin data. The Keychain entry is left for other vaults; delete it in Keychain Access (service `obsidian-japan-work-secretary`) once every vault is upgraded.
+- **Gemini requests** go through Obsidian's `requestUrl`, with the key in a request header rather than in the URL.
 
 Build from source:
 
 ```bash
 npm install
 npm run build     # writes main.js
-npm test          # 23 tests: 28-hour windows, vacations, wages, calendar sync planning
+npm test          # 27 tests: 28-hour windows, vacations, wages, calendar sync planning, pay notes, .ics, reading AI replies
 ```
 
 `styles.css` is generated. Edit `styles/plugin.css` (or the shared `styles/kit.css`, the same in all of my plugins) and run `npm run styles`.
@@ -105,10 +116,19 @@ npm test          # 23 tests: 28-hour windows, vacations, wages, calendar sync p
 
 - Rules about hours and income are for reference only. Check your school and the official pages linked in the dashboard (ⓘ).
 - Calendar sync works with the macOS Calendar app only.
-- Saving a key to the Keychain passes it to the `security` command as an argument, so it is briefly visible to other processes of the same user.
 - The interface mixes English and Chinese.
 
 ## Changelog
+
+**1.4.0**
+
+- Shifts read by the AI open in a check list before anything is saved: edit or untick rows, see duplicates and rows that would break the 28-hour or 8-hour rule.
+- *Save pay note*: a Markdown note with every shift, totals by store and overtime, to check against your payslip.
+- *Export .ics* for Google Calendar, Outlook and phones.
+- The Gemini key moves to Obsidian's secret storage and can be shared with other plugins. Requires Obsidian 1.11.4.
+- Gemini is called through Obsidian's `requestUrl` instead of Google's SDK; the plugin file is about 170 KB instead of 960 KB. Images are read from the vault instead of the file system.
+- The AI prompt no longer assumes a particular store or the year 2026.
+- Deleting a recurring shift or a template takes a second click instead of a browser dialog. Settings and commands use sentence case and Obsidian's own section headings.
 
 **1.3.0**
 
@@ -140,18 +160,21 @@ MIT
 
 在日本打工的留学生，常常同时要管三件事：排班表（照片或聊天消息）、按时段和店铺变化的时薪，以及每周 28 小时的上限。这个插件把排班放进 Obsidian，按日本工资条的算法算工资，并在你加班次时检查每一个连续 7 天。
 
-- **排班：** 月视图、周视图；固定班次；可从选中的文字或排班截图里识别班次，确认后再保存（可选，用你自己的 Gemini 密钥）。
+- **排班：** 月视图、周视图；固定班次；可从选中的文字或排班截图里识别班次，先进核对清单（可改日期时间、取消某行，标出已存在和会超 28 小时／8 小时的行），点保存才入库（可选，用你自己的 Gemini 密钥）。
 - **工资：** 早、日、晚、深夜分时段时薪，按店铺设置；时薪上调可按生效日期新增；超过 6 小时自动扣 45 分钟、超过 8 小时扣 60 分钟休息；加班、节假日加给、交通费、从任意一天开始的工资月。
 - **上限：** 任意连续 7 天 28 小时；学校长假期间改为每天 8 小时（在设置里填长假日期）；收入提醒线由你按当年规定自己填写，插件不替你判断税额。
-- **日历：** 同步到 macOS 日历，只写有变化的班次，用隐藏标记原地更新、不重复。
+- **日历：** 同步到 macOS 日历，只写有变化的班次，用隐藏标记原地更新、不重复；也可导出 .ics 给 Google 日历、Outlook、手机。
+- **工资笔记（1.4.0）：** 按所选区间生成 Markdown 笔记，列出每个班次、按店合计和含加班的总额，方便对照工资条。
+- **密钥（1.4.0）：** 存在 Obsidian 的密钥库里，可与其他插件共用；旧版存的密钥首次启动自动迁移。需 Obsidian 1.11.4 以上。
 - **隐私：** 数据都在你的库里；只有在你执行识别命令时，选中的文字或图片才会发给 Gemini。
 
 ## 日本語
 
 日本でアルバイトをする留学生向けに、シフト・給与・週28時間の上限を Obsidian の中で管理するプラグインです。
 
-- **シフト：** 月表示・週表示、固定シフト。シフト表の文章やスクリーンショットから読み取り、確認してから保存できます（任意、ご自身の Gemini API キーを使用）。
+- **シフト：** 月表示・週表示、固定シフト。シフト表の文章やスクリーンショットから読み取り、確認リストで修正してから保存します（任意、ご自身の Gemini API キーを使用）。
 - **給与：** 朝・日中・夕方・深夜の時給を店舗ごとに設定。時給改定は適用開始日つきで追加。6時間超で45分、8時間超で60分の休憩を自動控除。残業、祝日手当、交通費、締め日にも対応。
 - **上限：** 任意の連続7日間で28時間。学校の長期休業期間は1日8時間で確認（期間は設定に入力）。収入の目安額はご自身で設定します。税額の判断はしません。
-- **カレンダー：** macOS カレンダーへ同期。変更のあったシフトだけを書き込み、重複を作りません。
+- **カレンダー：** macOS カレンダーへ同期。変更のあったシフトだけを書き込み、重複を作りません。Google カレンダーや Outlook 向けに .ics も書き出せます。
+- **給与メモ（1.4.0）：** 期間内のシフト、店舗別の合計、残業を含む総額を Markdown ノートに保存し、給与明細と照合できます。
 - **プライバシー：** データは保管庫の中に保存されます。読み取りを実行したときだけ、選んだ文章や画像が Gemini に送られます。
