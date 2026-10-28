@@ -33,7 +33,7 @@ Japan Work Secretary keeps the schedule in your vault, works out the pay the way
 
 - **Time bands:** morning, daytime, evening and late-night rates, per store.
 - **Wage changes with a start date.** When your hourly rate goes up, add a new band from that date; earlier shifts keep the old rate.
-- **Breaks:** 45 minutes over 6 hours and 60 minutes over 8 hours are deducted automatically, unless you set a break yourself.
+- **Breaks you actually took.** Enter the break for a shift and it is deducted. If you leave it empty, nothing is deducted: the shift counts as scheduled and is marked *No break entered*. The law says the employer must give 45 minutes over 6 hours and 60 minutes over 8 hours ([MHLW](https://www.mhlw.go.jp/bunya/roudoukijun/faq_kijyunhou_13.html)); that is not proof you had one, so the plugin does not assume it.
 - **Overtime** over 8 hours a day or 40 hours a week, holiday bonus, commuting allowance, and a payroll month that can start on any day (for example the 21st).
 - **Japanese public holidays** are fetched and cached; you can add your own.
 
@@ -55,11 +55,11 @@ Japan Work Secretary keeps the schedule in your vault, works out the pay the way
 
 *Share or export → Save pay note* writes a Markdown note for the chosen range (by default the payroll month on screen): every shift with its hours and pay, totals by store, and the period total including overtime. Keep it next to your payslip (給与明細) to check it.
 
-### Paper & ink style (optional)
+### Adding a shift
 
-Turn it on in settings for a paper-and-ink look. Off by default, so the dashboard follows your theme. Below: adding a shift that would push the week over 28 hours.
+Double-click a day. Before you save, the dialog shows the pay, whether a break has been entered, and what the shift does to the busiest 7 days.
 
-<img src="docs/screenshots/paper-quick-add.jpg" width="860">
+<img src="docs/screenshots/quick-add.jpg" width="860">
 
 ## Install
 
@@ -96,7 +96,7 @@ There is no account and no server of our own.
 
 ## How it works
 
-- **28-hour check:** the Immigration Services Agency's page on work permission for students says "１週について２８時間以内（教育機関の長期休業期間にあっては、１日について８時間以内）" ([source](https://www.moj.go.jp/isa/applications/procedures/nyuukokukanri07_00003.html), checked 29 October 2026). The page does not say which day a week starts on, so the plugin takes the cautious reading: for the selected day it looks at all seven 7-day windows that include it and reports the largest total. Paid leave and vacation days are not counted toward the weekly limit; vacation days are checked against 8 hours each. Long vacations are the periods in your school's calendar, not days you simply have no class.
+- **28-hour check:** the Immigration Services Agency's page on work permission for students says "１週について２８時間以内（教育機関の長期休業期間にあっては、１日について８時間以内）" ([source](https://www.moj.go.jp/isa/applications/procedures/nyuukokukanri07_00003.html), checked 29 October 2026). The page does not say which day a week starts on, so the plugin takes the cautious reading: for the selected day it looks at all seven 7-day windows that include it and reports the largest total. Paid leave is not counted. A 7-day window made only of long-vacation days is checked against 8 hours a day instead. A window that mixes term days and vacation days is held to 28 hours with all of its hours and marked, because the official page does not say how such a week is counted; this is the stricter reading. Long vacations are the periods in your school's calendar, not days you simply have no class.
 - **Wage bands:** each store keeps a list of rate tables with an `effectiveFrom` date. A shift uses the newest table that started on or before its date.
 - **Calendar sync:** every shift gets a fingerprint made only of the fields that appear in the event (date, times, store, calendar, title). Changing a wage does not rewrite your calendar; changing a time does. AppleScript receives values as arguments rather than as text pasted into the script, so store names with quotes or non-Latin characters are safe.
 - **API key:** kept in Obsidian's secret storage (Settings → Gemini API key). Several plugins can share one secret, so you paste a Gemini key once. Versions before 1.4.0 kept the key in the macOS Keychain or in plugin data; 1.4.0 copies it into secret storage on first start, under the name `gemini-api-key`, and clears it from plugin data. The Keychain entry is left for other vaults; delete it in Keychain Access (service `obsidian-japan-work-secretary`) once every vault is upgraded.
@@ -110,7 +110,7 @@ npm run build     # writes main.js
 npm test          # 27 tests: 28-hour windows, vacations, wages, calendar sync planning, pay notes, .ics, reading AI replies
 ```
 
-`styles.css` is generated. Edit `styles/plugin.css` (or the shared `styles/kit.css`, the same in all of my plugins) and run `npm run styles`.
+`styles.css` is generated. Edit `styles/plugin.css` (or the shared glass kit `styles/apple-kit.css` and `styles/ap-helpers.css`, the same in all of my plugins) and run `npm run styles`.
 
 ## Known limits
 
@@ -122,6 +122,9 @@ npm test          # 27 tests: 28-hour windows, vacations, wages, calendar sync p
 
 **1.4.0**
 
+- New look in the style of current Apple apps: solid cards and grouped lists, a glass header bar and glass dialogs, settings drawn as grouped lists. Follows your theme and accent colour; glass turns solid when the system asks for reduced transparency. The paper style option is gone.
+- Breaks are no longer deducted automatically. A shift without an entered break counts as scheduled and is marked *No break entered*; the add-shift dialog has a break field.
+- A 7-day window that mixes term days and the long vacation is now held to 28 hours with all its hours (previously vacation days were left out), and is marked with a link to the official page.
 - Shifts read by the AI open in a check list before anything is saved: edit or untick rows, see duplicates and rows that would break the 28-hour or 8-hour rule.
 - *Save pay note*: a Markdown note with every shift, totals by store and overtime, to check against your payslip.
 - *Export .ics* for Google Calendar, Outlook and phones.
@@ -161,8 +164,8 @@ MIT
 在日本打工的留学生，常常同时要管三件事：排班表（照片或聊天消息）、按时段和店铺变化的时薪，以及每周 28 小时的上限。这个插件把排班放进 Obsidian，按日本工资条的算法算工资，并在你加班次时检查每一个连续 7 天。
 
 - **排班：** 月视图、周视图；固定班次；可从选中的文字或排班截图里识别班次，先进核对清单（可改日期时间、取消某行，标出已存在和会超 28 小时／8 小时的行），点保存才入库（可选，用你自己的 Gemini 密钥）。
-- **工资：** 早、日、晚、深夜分时段时薪，按店铺设置；时薪上调可按生效日期新增；超过 6 小时自动扣 45 分钟、超过 8 小时扣 60 分钟休息；加班、节假日加给、交通费、从任意一天开始的工资月。
-- **上限：** 任意连续 7 天 28 小时；学校长假期间改为每天 8 小时（在设置里填长假日期）；收入提醒线由你按当年规定自己填写，插件不替你判断税额。
+- **工资：** 早、日、晚、深夜分时段时薪，按店铺设置；时薪上调可按生效日期新增；休息按实际填写扣除，没填就按排班原样计并标“未填休息”（法定 6 小时以上 45 分钟、8 小时以上 60 分钟是雇主应给的休息，不代表一定休了）；加班、节假日加给、交通费、从任意一天开始的工资月。
+- **上限：** 任意连续 7 天 28 小时；学校长假期间改为每天 8 小时（在设置里填长假日期）；一周里学期和长假混在一起时，从严按全部工时计 28 小时并提示；收入提醒线由你按当年规定自己填写，插件不替你判断税额。
 - **日历：** 同步到 macOS 日历，只写有变化的班次，用隐藏标记原地更新、不重复；也可导出 .ics 给 Google 日历、Outlook、手机。
 - **工资笔记（1.4.0）：** 按所选区间生成 Markdown 笔记，列出每个班次、按店合计和含加班的总额，方便对照工资条。
 - **密钥（1.4.0）：** 存在 Obsidian 的密钥库里，可与其他插件共用；旧版存的密钥首次启动自动迁移。需 Obsidian 1.11.4 以上。
@@ -173,8 +176,8 @@ MIT
 日本でアルバイトをする留学生向けに、シフト・給与・週28時間の上限を Obsidian の中で管理するプラグインです。
 
 - **シフト：** 月表示・週表示、固定シフト。シフト表の文章やスクリーンショットから読み取り、確認リストで修正してから保存します（任意、ご自身の Gemini API キーを使用）。
-- **給与：** 朝・日中・夕方・深夜の時給を店舗ごとに設定。時給改定は適用開始日つきで追加。6時間超で45分、8時間超で60分の休憩を自動控除。残業、祝日手当、交通費、締め日にも対応。
-- **上限：** 任意の連続7日間で28時間。学校の長期休業期間は1日8時間で確認（期間は設定に入力）。収入の目安額はご自身で設定します。税額の判断はしません。
+- **給与：** 朝・日中・夕方・深夜の時給を店舗ごとに設定。時給改定は適用開始日つきで追加。休憩は実際に取った分だけ入力して控除（未入力なら控除せず「休憩未入力」と表示）。残業、祝日手当、交通費、締め日にも対応。
+- **上限：** 任意の連続7日間で28時間。学校の長期休業期間は1日8時間で確認（期間は設定に入力）。学期と長期休業がまたがる週は、厳しい方で全時間を28時間に数えて表示します。収入の目安額はご自身で設定します。税額の判断はしません。
 - **カレンダー：** macOS カレンダーへ同期。変更のあったシフトだけを書き込み、重複を作りません。Google カレンダーや Outlook 向けに .ics も書き出せます。
 - **給与メモ（1.4.0）：** 期間内のシフト、店舗別の合計、残業を含む総額を Markdown ノートに保存し、給与明細と照合できます。
 - **プライバシー：** データは保管庫の中に保存されます。読み取りを実行したときだけ、選んだ文章や画像が Gemini に送られます。

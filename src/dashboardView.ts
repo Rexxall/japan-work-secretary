@@ -6,6 +6,7 @@ import { HolidayUtility } from './holidayUtility';
 import { ExchangeRateSnapshot, Shift, ShiftTemplatePattern, buildRecurringInstanceId, getStoreColorClass, getStoreShortName, getStoreWageBand, normalizeStoreConfigs, parseRecurringInstanceId } from './data';
 import type { Moment } from 'moment';
 import { PolicyExplanationModal } from './policyModal';
+import { appendMixedWeekNote, breakMissingText } from './ruleNotes';
 
 export const DASHBOARD_VIEW_TYPE = 'japan-work-dashboard-view';
 
@@ -428,8 +429,7 @@ export class DashboardView extends ItemView {
 	render() {
 		this.contentEl.empty();
 		this.contentEl.addClass('jws-view-content');
-		const rootEl = this.contentEl.createDiv({ cls: 'japan-work-dashboard' });
-		rootEl.toggleClass('rk-paper', !!this.plugin.settings.paperStyle);
+		const rootEl = this.contentEl.createDiv({ cls: 'japan-work-dashboard ap ap-view' });
 
         const activePeriod = this.getPeriodForDate(this.currentViewDate);
         const calcStart = activePeriod.start;
@@ -437,21 +437,21 @@ export class DashboardView extends ItemView {
         const monthlyWage = this.getMonthlyWage(calcStart, calcEnd);
 
         // --- Header: what am I looking at, then the controls ---
-        const head = rootEl.createDiv({ cls: 'rk-head jws-head' });
-        const headMain = head.createDiv({ cls: 'rk-head-main' });
-        headMain.createDiv({ cls: 'rk-kicker', text: 'Japan Work Secretary' });
+        const head = rootEl.createDiv({ cls: 'ap-head ap-bar-glass jws-head' });
+        const headMain = head.createDiv({ cls: 'ap-head-main' });
+        headMain.createDiv({ cls: 'ap-eyebrow', text: 'Japan Work Secretary' });
         headMain.createEl('h2', {
-            cls: 'rk-title',
+            cls: 'ap-title',
             text: this.viewMode === 'month'
                 ? this.currentViewDate.format('MMMM YYYY')
                 : `Week of ${this.currentViewDate.clone().startOf('isoWeek').format('MMM D')}`
         });
         headMain.createDiv({
-            cls: 'rk-sub',
+            cls: 'ap-sub',
             text: this.isPayrollView ? `Work month ${activePeriod.label}` : 'Calendar month'
         });
 
-        const actions = head.createDiv({ cls: 'rk-head-actions' });
+        const actions = head.createDiv({ cls: 'ap-head-actions' });
         const prevBtn = actions.createEl('button', { text: '‹', cls: 'jws-icon-btn', attr: { 'aria-label': 'Previous' } });
         const todayBtn = actions.createEl('button', { text: 'Today' });
         const nextBtn = actions.createEl('button', { text: '›', cls: 'jws-icon-btn', attr: { 'aria-label': 'Next' } });
@@ -501,7 +501,7 @@ export class DashboardView extends ItemView {
 
         // Calendar sync modes
         const syncGroup = toolbar.createDiv({ cls: 'jws-sync' });
-        syncGroup.createSpan({ cls: 'rk-muted', text: 'Sync' });
+        syncGroup.createSpan({ cls: 'ap-muted', text: 'Sync' });
         const syncButtons: HTMLButtonElement[] = [];
         const runSync = async (action: () => Promise<unknown>) => {
             if (this.plugin.isCalendarSyncRunning()) {
@@ -540,19 +540,19 @@ export class DashboardView extends ItemView {
 
             const stats = contentWrapper.createDiv({ cls: 'jws-stats' });
 
-            const hoursCard = stats.createDiv({ cls: 'rk-card' });
-            hoursCard.createDiv({ cls: 'rk-label', text: this.isPayrollView ? 'Hours this work month' : 'Hours this month' });
+            const hoursCard = stats.createDiv({ cls: 'ap-card' });
+            hoursCard.createDiv({ cls: 'ap-label', text: this.isPayrollView ? 'Hours this work month' : 'Hours this month' });
             const hoursValue = hoursCard.createDiv();
-            hoursValue.createSpan({ cls: 'rk-stat-value', text: String(monthTotalHours) });
-            hoursValue.createSpan({ cls: 'rk-stat-unit', text: 'h' });
-            hoursCard.createDiv({ cls: 'rk-cap', text: `${currentShifts.length} shift${currentShifts.length === 1 ? '' : 's'}` });
+            hoursValue.createSpan({ cls: 'ap-stat-value', text: String(monthTotalHours) });
+            hoursValue.createSpan({ cls: 'ap-stat-unit', text: 'h' });
+            hoursCard.createDiv({ cls: 'ap-cap', text: `${currentShifts.length} shift${currentShifts.length === 1 ? '' : 's'}` });
 
-            const wageCard = stats.createDiv({ cls: 'rk-card' });
-            wageCard.createDiv({ cls: 'rk-label', text: 'Estimated wage' });
-            wageCard.createDiv({ cls: 'rk-stat-value', text: `¥${monthlyWage.toLocaleString()}` });
+            const wageCard = stats.createDiv({ cls: 'ap-card' });
+            wageCard.createDiv({ cls: 'ap-label', text: 'Estimated wage' });
+            wageCard.createDiv({ cls: 'ap-stat-value', text: `¥${monthlyWage.toLocaleString()}` });
             const rmbRate = this.getRmbExchangeRateForPeriod(calcEnd);
             wageCard.createDiv({
-                cls: 'rk-cap',
+                cls: 'ap-cap',
                 text: `≈ ¥${Math.floor(monthlyWage * rmbRate.rate).toLocaleString()} RMB`,
                 attr: { title: rmbRate.title }
             });
@@ -567,7 +567,7 @@ export class DashboardView extends ItemView {
                 this.renderWeekView(calendarSection);
             }
 
-            const chartCard = contentWrapper.createDiv({ cls: 'rk-card jws-week-chart' });
+            const chartCard = contentWrapper.createDiv({ cls: 'ap-card jws-week-chart' });
             this.renderWeeklyChart(chartCard);
         } else {
             const summaryGrid = contentWrapper.createDiv({ cls: 'jws-grid' });
@@ -577,18 +577,18 @@ export class DashboardView extends ItemView {
             this.renderTaxStrategyCard(summaryGrid, monthlyWage, this.annualWage);
             this.renderLegalStatusCard(summaryGrid);
 
-            contentWrapper.createDiv({ cls: 'rk-label jws-section-label', text: 'Shift management' });
+            contentWrapper.createDiv({ cls: 'ap-label jws-section-label', text: 'Shift management' });
             const mgmtGrid = contentWrapper.createDiv({ cls: 'jws-grid' });
-            const formCard = mgmtGrid.createDiv({ cls: 'rk-card' });
+            const formCard = mgmtGrid.createDiv({ cls: 'ap-card' });
             this.renderLeftManagementColumn(formCard);
-            const recurCard = mgmtGrid.createDiv({ cls: 'rk-card' });
-            recurCard.createDiv({ cls: 'rk-label', text: 'Weekly pattern · batch add' });
+            const recurCard = mgmtGrid.createDiv({ cls: 'ap-card' });
+            recurCard.createDiv({ cls: 'ap-label', text: 'Weekly pattern · batch add' });
             this.renderRightManagementColumn(recurCard);
         }
 	}
 
     private segmented(parent: HTMLElement, options: { label: string, active: boolean, title?: string, onClick: () => void }[]) {
-        const seg = parent.createDiv({ cls: 'rk-seg' });
+        const seg = parent.createDiv({ cls: 'ap-seg' });
         options.forEach(option => {
             const button = seg.createEl('button', {
                 text: option.label,
@@ -614,14 +614,14 @@ export class DashboardView extends ItemView {
         const ratio = result.totalHoursLast7Days / 28;
         const tone = result.isOverLimit ? 'is-danger' : ratio >= 0.85 ? 'is-warn' : 'is-good';
 
-        const card = parent.createDiv({ cls: `rk-card jws-peak-card ${result.isOverLimit ? 'is-danger' : ratio >= 0.85 ? 'is-warn' : ''}`.trim() });
-        card.createDiv({ cls: 'rk-label', text: `Peak 7 days · around ${this.selectedDate.format('M/D')}` });
+        const card = parent.createDiv({ cls: `ap-card jws-peak-card ${result.isOverLimit ? 'is-danger' : ratio >= 0.85 ? 'is-warn' : ''}`.trim() });
+        card.createDiv({ cls: 'ap-label', text: `Peak 7 days · around ${this.selectedDate.format('M/D')}` });
         const value = card.createDiv();
-        value.createSpan({ cls: 'rk-stat-value', text: String(result.totalHoursLast7Days) });
-        value.createSpan({ cls: 'rk-stat-unit', text: '/ 28 h' });
-        const meter = card.createDiv({ cls: `rk-meter ${tone}` });
-        meter.createDiv({ cls: 'rk-meter-fill' }).style.setProperty('--rk-fill', `${Math.min(ratio, 1) * 100}%`);
-        const split = card.createDiv({ cls: 'rk-split' });
+        value.createSpan({ cls: 'ap-stat-value', text: String(result.totalHoursLast7Days) });
+        value.createSpan({ cls: 'ap-stat-unit', text: '/ 28 h' });
+        const meter = card.createDiv({ cls: `ap-meter ${tone}` });
+        meter.createDiv({ cls: 'ap-meter-fill' }).setCssProps({ '--ap-value': `${Math.min(ratio, 1) * 100}%` });
+        const split = card.createDiv({ cls: 'ap-split' });
         split.createSpan({ text: `${moment(result.peakWindowStart).format('M/D ddd')} – ${moment(result.peakWindowEnd).format('M/D ddd')}` });
         split.createSpan({
             text: result.isOverLimit
@@ -635,22 +635,24 @@ export class DashboardView extends ItemView {
             const day = moment(result.peakWindowStart).add(i, 'days');
             const key = day.format('YYYY-MM-DD');
             const hours = shiftsForCheck
-                .filter(s => s.date === key && !s.isPaidLeave && !tracker.isVacationDay(key))
+                .filter(s => s.date === key && !s.isPaidLeave)
                 .reduce((sum, s) => sum + (s.calculatedHours || 0), 0);
             const col = bars.createDiv({ cls: 'jws-day-bar' });
             const bar = col.createDiv({ cls: 'jws-day-bar-fill' });
-            bar.style.setProperty('--jws-bar', `${Math.min(hours / maxDay, 1) * 100}%`);
+            bar.setCssProps({ '--jws-bar': `${Math.min(hours / maxDay, 1) * 100}%` });
             bar.setAttribute('title', `${day.format('M/D')}: ${hours} h`);
             col.createDiv({ cls: 'jws-day-bar-label', text: day.format('D') });
         }
 
-        if (tracker.isVacationDay(selected)) {
-            card.createDiv({ cls: 'rk-callout is-good jws-card-note', text: 'Long break: up to 8 h per day.' });
+        if (result.mixesVacation && result.totalHoursLast7Days > 0) {
+            appendMixedWeekNote(card.createDiv({ cls: `ap-notice ${result.isOverLimit ? 'is-danger' : 'is-warn'} jws-card-note` }).createDiv());
+        } else if (tracker.isVacationDay(selected)) {
+            card.createDiv({ cls: 'ap-notice is-good jws-card-note', text: 'Long break: up to 8 h per day.' });
         }
         const vacationOver = tracker.findVacationDaysOverLimit(shiftsForCheck);
         if (vacationOver.length > 0) {
             card.createDiv({
-                cls: 'rk-callout is-danger jws-card-note',
+                cls: 'ap-notice is-danger jws-card-note',
                 text: `Over 8 h on a long-break day: ${vacationOver.map(day => `${moment(day.date).format('M/D')} ${day.hours} h`).join(', ')}`
             });
         }
@@ -671,8 +673,8 @@ export class DashboardView extends ItemView {
         monthlyWage: number,
         currentShifts: Shift[]
     ) {
-        const card = container.createDiv({ cls: 'rk-card jws-income-card' });
-        card.createDiv({ cls: 'rk-label', text: 'Income' });
+        const card = container.createDiv({ cls: 'ap-card jws-income-card' });
+        card.createDiv({ cls: 'ap-label', text: 'Income' });
 
         const previousPeriod = this.getPreviousPeriod(calcStart, calcEnd);
         const previousWage = this.getMonthlyWage(previousPeriod.start, previousPeriod.end);
@@ -681,7 +683,7 @@ export class DashboardView extends ItemView {
         const percentLabel = previousWage > 0
             ? `${delta >= 0 ? '+' : ''}${Math.round((delta / previousWage) * 100)}%`
             : (monthlyWage > 0 ? 'new' : '0%');
-        const comparison = card.createDiv({ cls: 'rk-split jws-income-delta' });
+        const comparison = card.createDiv({ cls: 'ap-split jws-income-delta' });
         comparison.createSpan({ text: 'vs previous period' });
         comparison.createSpan({ cls: delta >= 0 ? 'is-up' : 'is-down', text: `${deltaLabel} (${percentLabel})`, attr: { title: displayLabel } });
 
@@ -698,7 +700,7 @@ export class DashboardView extends ItemView {
         trendRows.forEach((row, index) => {
             const wrap = trendChart.createDiv({ cls: `jws-trend-col${index === trendRows.length - 1 ? ' is-current' : ''}` });
             const bar = wrap.createDiv({ cls: 'jws-trend-bar' });
-            bar.style.setProperty('--jws-bar', `${Math.max(4, Math.round((row.wage / maxTrendWage) * 100))}%`);
+            bar.setCssProps({ '--jws-bar': `${Math.max(4, Math.round((row.wage / maxTrendWage) * 100))}%` });
             bar.setAttribute('title', `${row.label}: ¥${row.wage.toLocaleString()}`);
             wrap.createDiv({ text: row.label, cls: 'jws-trend-label' });
         });
@@ -710,7 +712,7 @@ export class DashboardView extends ItemView {
         const storeRows = Array.from(storeTotals.entries()).sort((a, b) => b[1] - a[1]);
         const storeTotal = storeRows.reduce((sum, [, wage]) => sum + wage, 0);
         if (storeRows.length === 0 || storeTotal === 0) {
-            card.createDiv({ text: 'No store income in this period', cls: 'rk-cap' });
+            card.createDiv({ text: 'No store income in this period', cls: 'ap-cap' });
             return;
         }
         const shareBar = card.createDiv({ cls: 'jws-store-share' });
@@ -723,8 +725,8 @@ export class DashboardView extends ItemView {
         storeRows.forEach(([storeName, wage]) => {
             const row = legend.createDiv({ cls: `jws-store-row ${getStoreColorClass(this.plugin.settings, storeName)}` });
             row.createSpan({ cls: 'jws-store-swatch' });
-            row.createSpan({ text: `${getStoreShortName(this.plugin.settings, storeName)} ${Math.round((wage / storeTotal) * 100)}%`, cls: 'rk-grow' });
-            row.createSpan({ text: `¥${wage.toLocaleString()}`, cls: 'rk-num' });
+            row.createSpan({ text: `${getStoreShortName(this.plugin.settings, storeName)} ${Math.round((wage / storeTotal) * 100)}%`, cls: 'ap-grow' });
+            row.createSpan({ text: `¥${wage.toLocaleString()}`, cls: 'ap-num' });
         });
     }
 
@@ -892,7 +894,7 @@ export class DashboardView extends ItemView {
 
     renderLeftManagementColumn(parent: HTMLElement) {
         const details = parent.createEl('details', { cls: 'jws-details' });
-        details.createEl('summary', { cls: 'rk-label', text: 'Add a single shift' });
+        details.createEl('summary', { cls: 'ap-label', text: 'Add a single shift' });
 
         const form = details.createDiv({ cls: 'jws-form' });
         const dateInput = field(form, 'Date').createEl('input', { attr: { type: 'date', value: moment().format('YYYY-MM-DD') } });
@@ -901,7 +903,7 @@ export class DashboardView extends ItemView {
         const endInput = field(timeRow, 'End').createEl('input', { attr: { type: 'time', value: '22:00' } });
         const storeSelect = field(form, 'Store').createEl('select', { cls: 'dropdown' });
         this.populateStoreSelect(storeSelect);
-        const breakInput = field(form, 'Break minutes (optional)').createEl('input', { attr: { type: 'number', placeholder: 'Auto calculate' } });
+        const breakInput = field(form, 'Break taken (minutes)').createEl('input', { attr: { type: 'number', min: '0', placeholder: 'Not entered' } });
 
         const btn = form.createEl('button', { cls: 'mod-cta', text: 'Add to records' });
         btn.onClickEvent(async () => {
@@ -948,20 +950,20 @@ export class DashboardView extends ItemView {
             this.render();
         });
 
-        parent.createDiv({ cls: 'rk-label jws-section-label', text: 'Recurring shifts' });
+        parent.createDiv({ cls: 'ap-label jws-section-label', text: 'Recurring shifts' });
         const list = parent.createDiv({ cls: 'jws-recurring-list' });
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
         if (this.plugin.shiftData.recurringShifts.length === 0) {
-            list.createDiv({ text: 'No recurring shifts set.', cls: 'rk-cap' });
+            list.createDiv({ text: 'No recurring shifts set.', cls: 'ap-cap' });
         }
 
         this.plugin.shiftData.recurringShifts.forEach(rs => {
             const isEditing = this.editingRecurringId === rs.id;
-            const item = list.createDiv({ cls: `rk-row jws-recurring${isEditing ? ' is-editing' : ''}` });
+            const item = list.createDiv({ cls: `ap-line jws-recurring${isEditing ? ' is-editing' : ''}` });
 
             if (isEditing) {
-                const editor = item.createDiv({ cls: 'jws-form rk-grow' });
+                const editor = item.createDiv({ cls: 'jws-form ap-grow' });
                 const row1 = editor.createDiv({ cls: 'jws-form-row' });
                 const daySel = row1.createEl('select', { cls: 'dropdown' });
                 days.forEach((d, i) => { const opt = daySel.createEl('option', { text: d }); opt.value = i.toString(); if (i === rs.dayOfWeek) opt.selected = true; });
@@ -974,7 +976,7 @@ export class DashboardView extends ItemView {
                 const startDateIn = row3.createEl('input', { attr: { type: 'date', value: rs.startDate || '' } });
                 const endDateIn = row3.createEl('input', { attr: { type: 'date', value: rs.endDate || '' } });
 
-                const editActions = editor.createDiv({ cls: 'rk-actions' });
+                const editActions = editor.createDiv({ cls: 'ap-actions' });
                 const cancelBtn = editActions.createEl('button', { text: 'Cancel' });
                 const saveBtn = editActions.createEl('button', { text: 'Save', cls: 'mod-cta' });
                 saveBtn.onClickEvent(async () => {
@@ -991,8 +993,8 @@ export class DashboardView extends ItemView {
                 });
                 cancelBtn.onClickEvent(() => { this.editingRecurringId = null; this.render(); });
             } else {
-                item.createSpan({ cls: `rk-chip jws-store-chip ${getStoreColorClass(this.plugin.settings, rs.storeName)}`, text: getStoreShortName(this.plugin.settings, rs.storeName) });
-                item.createSpan({ cls: 'rk-grow rk-num', text: `${days[rs.dayOfWeek]} ${rs.startTime}–${rs.endTime}` });
+                item.createSpan({ cls: `ap-pill jws-store-chip ${getStoreColorClass(this.plugin.settings, rs.storeName)}`, text: getStoreShortName(this.plugin.settings, rs.storeName) });
+                item.createSpan({ cls: 'ap-grow ap-num', text: `${days[rs.dayOfWeek]} ${rs.startTime}–${rs.endTime}` });
                 const editIcon = item.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': 'Edit recurring shift' } });
                 setIcon(editIcon, 'pencil');
                 const delBtn = item.createEl('button', { cls: 'clickable-icon jws-danger-icon', attr: { 'aria-label': 'Delete recurring shift' } });
@@ -1114,21 +1116,21 @@ export class DashboardView extends ItemView {
 
         const templates = this.plugin.shiftData.shiftTemplates || [];
         const templateList = addSection.createDiv({ cls: 'template-list' });
-        templateList.createDiv({ cls: 'rk-label jws-section-label', text: 'Saved templates' });
+        templateList.createDiv({ cls: 'ap-label jws-section-label', text: 'Saved templates' });
 
         if (templates.length === 0) {
-            templateList.createDiv({ text: 'No templates saved yet.', cls: 'rk-cap' });
+            templateList.createDiv({ text: 'No templates saved yet.', cls: 'ap-cap' });
             return;
         }
 
         templates.forEach(template => {
-            const row = templateList.createDiv({ cls: 'rk-row template-item' });
-            const info = row.createDiv({ cls: 'rk-grow' });
+            const row = templateList.createDiv({ cls: 'ap-line template-item' });
+            const info = row.createDiv({ cls: 'ap-grow' });
             info.createDiv({ text: template.name, cls: 'template-item-title' });
             const summary = template.patterns
                 .map(pattern => `${days[pattern.dayOfWeek]} ${pattern.startTime}-${pattern.endTime} ${getStoreShortName(this.plugin.settings, pattern.storeName)}`)
                 .join(' / ');
-            info.createDiv({ text: summary, cls: 'rk-cap' });
+            info.createDiv({ text: summary, cls: 'ap-cap' });
 
             const actions = row.createDiv({ cls: 'template-item-actions' });
             const loadBtn = actions.createEl('button', { text: 'Load' });
@@ -1375,9 +1377,9 @@ export class DashboardView extends ItemView {
     }
 
     private renderTaxStrategyCard(container: HTMLElement, monthly: number, annual: number) {
-        const card = container.createDiv({ cls: 'rk-card' });
+        const card = container.createDiv({ cls: 'ap-card' });
         const headerRow = card.createDiv({ cls: 'jws-card-head' });
-        headerRow.createDiv({ cls: 'rk-label', text: 'Income alerts' });
+        headerRow.createDiv({ cls: 'ap-label', text: 'Income alerts' });
         const infoBtn = headerRow.createEl('button', { text: 'Rules', cls: 'jws-small-btn', attr: { title: 'Official sources for the 28-hour rule and income thresholds' } });
         infoBtn.onClickEvent(() => {
             new PolicyExplanationModal(this.plugin.app).open();
@@ -1385,7 +1387,7 @@ export class DashboardView extends ItemView {
 
         const alerts = (this.plugin.settings.incomeAlerts || []).filter(alert => alert.enabled && alert.amount > 0);
         if (alerts.length === 0) {
-            card.createDiv({ cls: 'rk-cap', text: 'No income alerts set. Add the amounts for this year in Settings → Income Alerts.' });
+            card.createDiv({ cls: 'ap-cap', text: 'No income alerts set. Add the amounts for this year in Settings → Income Alerts.' });
         }
         for (const alert of alerts) {
             const current = alert.period === 'annual' ? annual : monthly;
@@ -1403,46 +1405,46 @@ export class DashboardView extends ItemView {
     private createTaxItem(container: HTMLElement, label: string, current: number, wall: number, status: 'safe' | 'near' | 'danger') {
         const tone = status === 'danger' ? 'is-danger' : status === 'near' ? 'is-warn' : 'is-good';
         const item = container.createDiv({ cls: 'jws-meter-item' });
-        const top = item.createDiv({ cls: 'rk-split jws-meter-top' });
+        const top = item.createDiv({ cls: 'ap-split jws-meter-top' });
         top.createSpan({ text: label });
-        top.createSpan({ cls: `rk-chip ${tone}`, text: status === 'danger' ? 'over' : status === 'near' ? 'close' : 'ok' });
+        top.createSpan({ cls: `ap-pill ${tone}`, text: status === 'danger' ? 'over' : status === 'near' ? 'close' : 'ok' });
         // The text shows the real share, the bar stops at full.
         const percent = Math.round((current / wall) * 100);
-        const meter = item.createDiv({ cls: `rk-meter ${tone}` });
-        meter.createDiv({ cls: 'rk-meter-fill' }).style.setProperty('--rk-fill', `${Math.min(100, percent)}%`);
-        item.createDiv({ cls: 'rk-cap rk-num', text: `¥${current.toLocaleString()} / ¥${wall.toLocaleString()} (${percent}%)` });
+        const meter = item.createDiv({ cls: `ap-meter ${tone}` });
+        meter.createDiv({ cls: 'ap-meter-fill' }).setCssProps({ '--ap-value': `${Math.min(100, percent)}%` });
+        item.createDiv({ cls: 'ap-cap ap-num', text: `¥${current.toLocaleString()} / ¥${wall.toLocaleString()} (${percent}%)` });
     }
 
     private renderLegalStatusCard(containerEl: HTMLElement) {
-        const card = containerEl.createDiv({ cls: 'rk-card' });
-        card.createDiv({ cls: 'rk-label', text: 'Paid leave and overtime' });
+        const card = containerEl.createDiv({ cls: 'ap-card' });
+        card.createDiv({ cls: 'ap-label', text: 'Paid leave and overtime' });
 
         const leaveBalance = this.plugin.settings.paidLeaveBalance || 0;
         const usedLeave = this.plugin.shiftData.shifts.filter(s => s.isPaidLeave).length;
         const remainingLeave = leaveBalance - usedLeave;
         const leaveItem = card.createDiv({ cls: 'jws-meter-item' });
-        const leaveTop = leaveItem.createDiv({ cls: 'rk-split jws-meter-top' });
+        const leaveTop = leaveItem.createDiv({ cls: 'ap-split jws-meter-top' });
         leaveTop.createSpan({ text: 'Paid leave (有給休暇)' });
-        leaveTop.createSpan({ cls: 'rk-num', text: `${remainingLeave} / ${leaveBalance} days left` });
-        const leaveMeter = leaveItem.createDiv({ cls: `rk-meter ${remainingLeave <= 1 ? 'is-danger' : 'is-good'}` });
-        leaveMeter.createDiv({ cls: 'rk-meter-fill' }).style.setProperty('--rk-fill', `${leaveBalance > 0 ? Math.max(0, remainingLeave / leaveBalance) * 100 : 0}%`);
+        leaveTop.createSpan({ cls: 'ap-num', text: `${remainingLeave} / ${leaveBalance} days left` });
+        const leaveMeter = leaveItem.createDiv({ cls: `ap-meter ${remainingLeave <= 1 ? 'is-danger' : 'is-good'}` });
+        leaveMeter.createDiv({ cls: 'ap-meter-fill' }).setCssProps({ '--ap-value': `${leaveBalance > 0 ? Math.max(0, remainingLeave / leaveBalance) * 100 : 0}%` });
 
         // Weekly overtime (current week)
         const weekShifts = this.getShiftsInRange(moment().startOf('week'), moment().endOf('week'));
         const totalHours = weekShifts.reduce((sum, s) => sum + s.calculatedHours, 0);
         const otItem = card.createDiv({ cls: 'jws-meter-item' });
-        const otTop = otItem.createDiv({ cls: 'rk-split jws-meter-top' });
+        const otTop = otItem.createDiv({ cls: 'ap-split jws-meter-top' });
         otTop.createSpan({ text: 'This week' });
-        otTop.createSpan({ cls: 'rk-num', text: `${totalHours.toFixed(1)} / 40 h` });
-        const otMeter = otItem.createDiv({ cls: `rk-meter ${totalHours > 40 ? 'is-danger' : ''}`.trim() });
-        otMeter.createDiv({ cls: 'rk-meter-fill' }).style.setProperty('--rk-fill', `${Math.min(100, (totalHours / 40) * 100)}%`);
+        otTop.createSpan({ cls: 'ap-num', text: `${totalHours.toFixed(1)} / 40 h` });
+        const otMeter = otItem.createDiv({ cls: `ap-meter ${totalHours > 40 ? 'is-danger' : ''}`.trim() });
+        otMeter.createDiv({ cls: 'ap-meter-fill' }).setCssProps({ '--ap-value': `${Math.min(100, (totalHours / 40) * 100)}%` });
         if (totalHours > 40) {
-            otItem.createDiv({ cls: 'rk-callout is-danger jws-card-note', text: 'Weekly overtime: hours over 40 are paid at the overtime rate.' });
+            otItem.createDiv({ cls: 'ap-notice is-danger jws-card-note', text: 'Weekly overtime: hours over 40 are paid at the overtime rate.' });
         }
     }
 
     private renderWeeklyChart(parent: HTMLElement) {
-        parent.createDiv({ cls: 'rk-label', text: 'Last 7 days' });
+        parent.createDiv({ cls: 'ap-label', text: 'Last 7 days' });
         const chart = parent.createDiv({ cls: 'jws-day-bars is-wide' });
         const maxHours = 8;
         for (let i = 6; i >= 0; i--) {
@@ -1450,7 +1452,7 @@ export class DashboardView extends ItemView {
             const totalHours = this.getShiftsInRange(d, d).reduce((sum, s) => sum + s.calculatedHours, 0);
             const col = chart.createDiv({ cls: 'jws-day-bar' });
             const bar = col.createDiv({ cls: `jws-day-bar-fill${totalHours > 0 ? '' : ' is-empty'}` });
-            bar.style.setProperty('--jws-bar', `${Math.min(100, (totalHours / maxHours) * 100)}%`);
+            bar.setCssProps({ '--jws-bar': `${Math.min(100, (totalHours / maxHours) * 100)}%` });
             bar.setAttribute('title', `${totalHours} h on ${d.format('MM/DD')}`);
             col.createDiv({ cls: 'jws-day-bar-label', text: d.format('dd') });
         }
@@ -1482,7 +1484,7 @@ class ShiftShareModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
         this.modalEl.addClass('jws-modal');
-        this.modalEl.toggleClass('rk-paper', !!this.plugin.settings.paperStyle);
+        this.modalEl.addClass('ap', 'ap-modal');
         this.titleEl.setText('Share or export');
 
         const form = contentEl.createDiv({ cls: 'jws-form-row' });
@@ -1502,8 +1504,8 @@ class ShiftShareModal extends Modal {
         endInput.onchange = updatePreview;
         updatePreview();
 
-        const actions = contentEl.createDiv({ cls: 'rk-modal-foot' });
-        actions.createDiv({ cls: 'rk-foot-note', text: 'Text for a chat message, an image, a pay note, or a calendar file.' });
+        const actions = contentEl.createDiv({ cls: 'ap-modal-foot' });
+        actions.createDiv({ cls: 'ap-foot-note', text: 'Text for a chat message, an image, a pay note, or a calendar file.' });
         const closeBtn = actions.createEl('button', { text: 'Close' });
         const noteBtn = actions.createEl('button', { text: 'Save pay note', attr: { 'aria-label': 'Save a note with every shift and the pay for this range, to compare with your payslip' } });
         const icsBtn = actions.createEl('button', { text: 'Export .ics', attr: { 'aria-label': 'Save a calendar file for Google Calendar, Outlook or your phone' } });
@@ -1705,10 +1707,10 @@ function armDelete(button: HTMLElement, label: string, onDelete: () => Promise<v
 
 // ─── Shift modals ─────────────────────────────────────────────────────────────
 
-/** Shared look for the plugin's modals: own class, optional paper style, title in the header. */
+/** Shared look for the plugin's modals: own class, the glass sheet, title in the header. */
 function prepareModal(modal: Modal, plugin: JapanWorkSecretaryPlugin, title: string) {
     modal.modalEl.addClass('jws-modal');
-    modal.modalEl.toggleClass('rk-paper', !!plugin.settings.paperStyle);
+    modal.modalEl.addClass('ap', 'ap-modal');
     modal.titleEl.setText(title);
 }
 
@@ -1747,7 +1749,7 @@ class EditShiftModal extends Modal {
             if (store.name === this.shift.storeName) opt.selected = true;
         });
 
-        const preview = contentEl.createDiv({ cls: 'rk-card is-flat jws-preview' });
+        const preview = contentEl.createDiv({ cls: 'ap-card is-flat jws-preview' });
         const updatePreview = () => {
             const calculator = new WageCalculator(this.plugin.settings);
             const res = calculator.calculateShiftWage(dateInput.value, startInput.value, endInput.value, this.shift.isPaidLeave, this.shift.breakMinutes, storeSelect.value);
@@ -1757,8 +1759,8 @@ class EditShiftModal extends Modal {
         [dateInput, startInput, endInput].forEach(el => el.oninput = updatePreview);
         storeSelect.onchange = updatePreview;
 
-        const foot = contentEl.createDiv({ cls: 'rk-modal-foot' });
-        foot.createDiv({ cls: 'rk-foot-note', text: 'Saving also updates the calendar event.' });
+        const foot = contentEl.createDiv({ cls: 'ap-modal-foot' });
+        foot.createDiv({ cls: 'ap-foot-note', text: 'Saving also updates the calendar event.' });
         const cancelBtn = foot.createEl('button', { text: 'Cancel' });
         cancelBtn.onClickEvent(() => this.close());
         const saveBtn = foot.createEl('button', { text: 'Save', cls: 'mod-cta' });
@@ -1797,11 +1799,11 @@ class EditShiftModal extends Modal {
 function renderWagePreview(el: HTMLElement, wage: number, hours: number) {
     el.empty();
     const left = el.createDiv();
-    left.createDiv({ cls: 'rk-cap', text: 'Estimated wage' });
-    left.createDiv({ cls: 'jws-preview-value rk-num', text: `¥${wage.toLocaleString()}` });
+    left.createDiv({ cls: 'ap-cap', text: 'Estimated wage' });
+    left.createDiv({ cls: 'jws-preview-value ap-num', text: `¥${wage.toLocaleString()}` });
     const right = el.createDiv({ cls: 'jws-preview-right' });
-    right.createDiv({ cls: 'rk-cap', text: 'Hours' });
-    right.createDiv({ cls: 'jws-preview-value rk-num', text: `${hours} h` });
+    right.createDiv({ cls: 'ap-cap', text: 'Hours' });
+    right.createDiv({ cls: 'jws-preview-value ap-num', text: `${hours} h` });
 }
 
 class QuickAddShiftModal extends Modal {
@@ -1822,7 +1824,7 @@ class QuickAddShiftModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
         prepareModal(this, this.plugin, 'Add shift');
-        contentEl.createDiv({ cls: 'rk-modal-kicker', text: moment(this.date).format('dddd, MMM D YYYY') });
+        contentEl.createDiv({ cls: 'ap-modal-kicker', text: moment(this.date).format('dddd, MMM D YYYY') });
 
         const form = contentEl.createDiv({ cls: 'jws-form' });
         const timeRow = form.createDiv({ cls: 'jws-form-row' });
@@ -1833,16 +1835,19 @@ class QuickAddShiftModal extends Modal {
             const opt = storeSelect.createEl('option', { text: store.name });
             opt.value = store.name;
         });
+        const breakInput = field(form, 'Break taken (minutes)').createEl('input', { attr: { type: 'number', min: '0', placeholder: 'Not entered' } });
+        const enteredBreak = () => (breakInput.value.trim() === '' ? undefined : Math.max(0, Number(breakInput.value) || 0));
 
-        const preview = contentEl.createDiv({ cls: 'rk-card is-flat jws-preview' });
-        const check = contentEl.createDiv({ cls: 'rk-callout jws-peak-check' });
+        const preview = contentEl.createDiv({ cls: 'ap-card is-flat jws-preview' });
+        const check = contentEl.createDiv({ cls: 'ap-notice jws-peak-check' });
         let saveBtn: HTMLButtonElement | null = null;
 
         // Show what this shift does to the busiest 7 days before it is saved.
         const updatePreview = () => {
             const calculator = new WageCalculator(this.plugin.settings);
-            const res = calculator.calculateShiftWage(this.date, startInput.value, endInput.value, false, undefined, storeSelect.value);
+            const res = calculator.calculateShiftWage(this.date, startInput.value, endInput.value, false, enteredBreak(), storeSelect.value);
             renderWagePreview(preview, res.wageAmount, res.totalHours);
+            if (res.breakMissing) preview.createDiv({ cls: 'ap-cap jws-break-missing', text: breakMissingText(res.requiredBreakMinutes) });
 
             if (!this.getShifts) {
                 check.hide();
@@ -1857,27 +1862,33 @@ class QuickAddShiftModal extends Modal {
             check.empty();
             check.removeClass('is-good', 'is-warn', 'is-danger');
             const text = check.createDiv();
-            if (tracker.isVacationDay(this.date)) {
-                check.addClass(res.totalHours > 8 ? 'is-danger' : 'is-good');
-                text.appendText(res.totalHours > 8 ? `Long-break day: ${res.totalHours} h is over 8 h.` : 'Long-break day: up to 8 h per day.');
-            } else if (result.isOverLimit) {
+            const vacationDay = tracker.isVacationDay(this.date);
+            if (result.isOverLimit) {
                 check.addClass('is-danger');
                 text.createEl('strong', { text: `This makes ${result.totalHoursLast7Days} h in ${range}.` });
-                text.appendText(' That is over 28 h in 7 days.');
+                text.appendText(' That is over 28 h in 7 days. ');
+                if (result.mixesVacation) appendMixedWeekNote(text);
+            } else if (vacationDay && res.totalHours > 8) {
+                check.addClass('is-danger');
+                text.appendText(`Long-break day: ${res.totalHours} h is over 8 h.`);
+            } else if (vacationDay && !result.mixesVacation) {
+                check.addClass('is-good');
+                text.appendText('Long-break day: up to 8 h per day.');
             } else {
                 check.addClass(result.totalHoursLast7Days / 28 >= 0.85 ? 'is-warn' : 'is-good');
-                text.appendText(`Busiest 7 days with this shift: ${result.totalHoursLast7Days} h in ${range} (${result.remainingHours} h left).`);
+                text.appendText(`Busiest 7 days with this shift: ${result.totalHoursLast7Days} h in ${range} (${result.remainingHours} h left). `);
+                if (result.mixesVacation) appendMixedWeekNote(text);
             }
             saveBtn?.setText(result.isOverLimit ? 'Save anyway' : 'Add shift');
         };
 
-        const foot = contentEl.createDiv({ cls: 'rk-modal-foot' });
-        foot.createDiv({ cls: 'rk-foot-note', text: 'Also written to your calendar.' });
+        const foot = contentEl.createDiv({ cls: 'ap-modal-foot' });
+        foot.createDiv({ cls: 'ap-foot-note', text: 'Also written to your calendar.' });
         const cancelBtn = foot.createEl('button', { text: 'Cancel' });
         cancelBtn.onClickEvent(() => this.close());
         saveBtn = foot.createEl('button', { text: 'Add shift', cls: 'mod-cta' });
         updatePreview();
-        [startInput, endInput].forEach(el => el.oninput = updatePreview);
+        [startInput, endInput, breakInput].forEach(el => el.oninput = updatePreview);
         storeSelect.onchange = updatePreview;
 
         saveBtn.onClickEvent(async () => {
@@ -1896,9 +1907,10 @@ class QuickAddShiftModal extends Modal {
             }
 
             const calculator = new WageCalculator(this.plugin.settings);
-            const res = calculator.calculateShiftWage(this.date, start, end, false, undefined, storeSelect.value);
+            const res = calculator.calculateShiftWage(this.date, start, end, false, enteredBreak(), storeSelect.value);
 
             const newShift = {
+                breakMinutes: enteredBreak(),
                 id: crypto.randomUUID(),
                 date: this.date,
                 startTime: start,

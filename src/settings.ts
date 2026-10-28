@@ -59,7 +59,6 @@ export interface JapanWorkSecretarySettings {
 	customHolidays: string[]; // YYYY-MM-DD
 	holidayCache: { [date: string]: string };
 	holidayCacheUpdatedAt: number;
-	paperStyle: boolean;
 }
 
 export const DEFAULT_SETTINGS: JapanWorkSecretarySettings = {
@@ -84,7 +83,6 @@ export const DEFAULT_SETTINGS: JapanWorkSecretarySettings = {
 	customHolidays: [],
 	holidayCache: {},
 	holidayCacheUpdatedAt: 0,
-	paperStyle: false
 }
 
 export class JapanWorkSecretarySettingTab extends PluginSettingTab {
@@ -99,8 +97,8 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.addClass('jws-settings');
-		const tabHeader = containerEl.createDiv({ cls: 'rk-seg jws-settings-tabs' });
+		containerEl.addClass('jws-settings', 'ap', 'ap-settings');
+		const tabHeader = containerEl.createDiv({ cls: 'ap-seg jws-settings-tabs' });
 		const generalSec = containerEl.createDiv();
 		const wageSec = containerEl.createDiv();
 		const legalSec = containerEl.createDiv();
@@ -122,17 +120,6 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 			btn.onClickEvent(() => show(idx));
 		});
 		show(0);
-
-		new Setting(generalSec)
-			.setName('Paper and ink style')
-			.setDesc('Paper background, ink lines and serif numbers. Off follows your theme.')
-			.addToggle(toggle => toggle
-				.setValue(!!this.plugin.settings.paperStyle)
-				.onChange(async (value) => {
-					this.plugin.settings.paperStyle = value;
-					await this.plugin.saveSettings();
-					this.plugin.refreshDashboards();
-				}));
 
 		// --- GENERAL TAB ---
 		new Setting(generalSec)
@@ -472,7 +459,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 
 		new Setting(legalSec)
 			.setName('Long vacations (8 hours a day)')
-			.setDesc('One period per line, such as 2026-08-01~2026-09-30. These days are checked against 8 hours each instead of the 28-hour week. Use the dates in your school calendar; days you simply have no class do not count.')
+			.setDesc('One period per line, such as 2026-08-01~2026-09-30. These days are checked against 8 hours each instead of the 28-hour week; a week that mixes term and vacation days counts all its hours toward 28. Use the dates in your school calendar; days you simply have no class do not count.')
 			.addTextArea(text => text
 				.setPlaceholder('2026-08-01~2026-09-30')
 				.setValue((this.plugin.settings.vacationPeriods || []).join('\n'))

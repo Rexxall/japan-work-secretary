@@ -4,6 +4,7 @@ import { ParsedShiftDraft } from './aiParser';
 import { Shift, normalizeStoreConfigs } from './data';
 import { HoursTracker, parseVacationPeriods } from './hoursTracker';
 import { WageCalculator } from './wageCalculator';
+import { breakMissingText } from './ruleNotes';
 
 interface ReviewRow extends ParsedShiftDraft {
     keep: boolean;
@@ -30,7 +31,7 @@ export class ShiftReviewModal extends Modal {
 
     onOpen() {
         this.modalEl.addClass('jws-modal', 'jws-review-modal');
-        this.modalEl.toggleClass('rk-paper', !!this.plugin.settings.paperStyle);
+        this.modalEl.addClass('ap', 'ap-modal');
         this.setTitle('Check shifts before saving');
         this.render();
     }
@@ -38,7 +39,7 @@ export class ShiftReviewModal extends Modal {
     private render() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createDiv({ cls: 'rk-modal-kicker', text: `Read from ${this.source}. Fix anything the AI got wrong, then save.` });
+        contentEl.createDiv({ cls: 'ap-modal-kicker', text: `Read from ${this.source}. Fix anything the AI got wrong, then save.` });
 
         const calculator = new WageCalculator(this.plugin.settings);
         const tracker = new HoursTracker(parseVacationPeriods(this.plugin.settings.vacationPeriods));
@@ -82,22 +83,22 @@ export class ShiftReviewModal extends Modal {
 
             const info = item.createDiv({ cls: 'jws-review-info' });
             const wage = calculator.calculateShiftWage(row.date, row.startTime, row.endTime, false, undefined, row.storeName);
-            info.createSpan({ cls: 'rk-num', text: `${wage.totalHours.toFixed(2)} h · ¥${Math.round(wage.wageAmount).toLocaleString()}` });
-            if (isDuplicateShift(this.plugin.shiftData.shifts, row)) info.createSpan({ cls: 'rk-chip', text: 'Already saved' });
+            info.createSpan({ cls: 'ap-num', text: `${wage.totalHours.toFixed(2)} h · ¥${Math.round(wage.wageAmount).toLocaleString()}` });
+            if (wage.breakMissing) info.createSpan({ cls: 'ap-pill is-warn', text: 'No break entered', attr: { title: breakMissingText(wage.requiredBreakMinutes) } });
+            if (isDuplicateShift(this.plugin.shiftData.shifts, row)) info.createSpan({ cls: 'ap-pill', text: 'Already saved' });
             if (row.keep) {
-                if (tracker.isVacationDay(row.date)) {
-                    if (vacationOver.has(row.date)) info.createSpan({ cls: 'rk-chip is-danger', text: 'Over 8 h that day' });
-                } else {
-                    const peak = tracker.checkPeak7DayWindow(withKept, row.date);
-                    if (peak.isOverLimit) info.createSpan({ cls: 'rk-chip is-danger', text: `${peak.totalHoursLast7Days} h in 7 days` });
+                if (vacationOver.has(row.date)) info.createSpan({ cls: 'ap-pill is-danger', text: 'Over 8 h that day' });
+                const peak = tracker.checkPeak7DayWindow(withKept, row.date);
+                if (peak.isOverLimit) {
+                    info.createSpan({ cls: 'ap-pill is-danger', text: `${peak.totalHoursLast7Days} h in 7 days${peak.mixesVacation ? ' (term and vacation)' : ''}` });
                 }
             }
         });
 
-        if (this.rows.length === 0) list.createDiv({ cls: 'rk-muted', text: 'No shifts were found.' });
+        if (this.rows.length === 0) list.createDiv({ cls: 'ap-muted', text: 'No shifts were found.' });
 
-        const foot = contentEl.createDiv({ cls: 'rk-modal-foot' });
-        foot.createDiv({ cls: 'rk-foot-note', text: 'Pay is an estimate before overtime.' });
+        const foot = contentEl.createDiv({ cls: 'ap-modal-foot' });
+        foot.createDiv({ cls: 'ap-foot-note', text: 'Pay is an estimate before overtime. Breaks are not deducted until you enter them.' });
         const cancel = foot.createEl('button', { text: 'Cancel' });
         cancel.onclick = () => this.close();
         const save = foot.createEl('button', { text: kept.length === 1 ? 'Save 1 shift' : `Save ${kept.length} shifts`, cls: 'mod-cta' });

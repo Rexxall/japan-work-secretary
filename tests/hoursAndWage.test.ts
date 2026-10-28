@@ -50,14 +50,23 @@ test('the peak window finds the heaviest 7 days around today', () => {
 
 test('daytime and evening hours use their own rates', () => {
     const calc = new WageCalculator(settings);
-    assert.deepEqual(calc.calculateShiftWage('2026-10-21', '10:00', '14:00', false, undefined, '测试店'), { totalHours: 4, wageAmount: 4800 });
+    assert.deepEqual(calc.calculateShiftWage('2026-10-21', '10:00', '14:00', false, undefined, '测试店'), { totalHours: 4, wageAmount: 4800, breakMissing: false, requiredBreakMinutes: 0 });
     // 16:00-17:00 at 1200, 17:00-20:00 at 1440
-    assert.deepEqual(calc.calculateShiftWage('2026-10-21', '16:00', '20:00', false, undefined, '测试店'), { totalHours: 4, wageAmount: 1200 + 3 * 1440 });
+    assert.deepEqual(calc.calculateShiftWage('2026-10-21', '16:00', '20:00', false, undefined, '测试店'), { totalHours: 4, wageAmount: 1200 + 3 * 1440, breakMissing: false, requiredBreakMinutes: 0 });
 });
 
-test('a 7-hour shift gets a 45-minute break', () => {
+test('an unentered break is not deducted; the shift counts as scheduled and is flagged', () => {
     const calc = new WageCalculator(settings);
-    assert.equal(calc.calculateShiftWage('2026-10-21', '10:00', '17:00', false, undefined, '测试店').totalHours, 6.25);
+    const missing = calc.calculateShiftWage('2026-10-21', '10:00', '17:00', false, undefined, '测试店');
+    assert.equal(missing.totalHours, 7);
+    assert.equal(missing.breakMissing, true);
+    assert.equal(missing.requiredBreakMinutes, 45);
+    const entered = calc.calculateShiftWage('2026-10-21', '10:00', '17:00', false, 45, '测试店');
+    assert.equal(entered.totalHours, 6.25);
+    assert.equal(entered.breakMissing, false);
+    assert.equal(calc.calculateShiftWage('2026-10-21', '09:00', '18:30', false, undefined, '测试店').requiredBreakMinutes, 60);
+    // Six hours or less needs no break, so nothing is flagged.
+    assert.equal(calc.calculateShiftWage('2026-10-21', '10:00', '16:00', false, undefined, '测试店').breakMissing, false);
 });
 
 test('a break longer than the shift never makes hours negative', () => {
@@ -74,17 +83,23 @@ test('vacation days use the 8-hour daily limit and leave the 28-hour window', ()
         { start: '2026-12-25', end: '2026-12-30' }
     ]);
     const tracker = new HoursTracker(periods);
-    const shifts = ['2026-08-03', '2026-08-04', '2026-08-05', '2026-08-06', '2026-08-07'].map(d => shift(d, 8));
-    shifts.push(shift('2026-08-07', 1, { id: 'extra' }));
-    const peak = tracker.checkPeak7DayWindow(shifts, '2026-08-05');
+    const shifts = ['2026-08-13', '2026-08-14', '2026-08-15', '2026-08-16', '2026-08-17'].map(d => shift(d, 8));
+    shifts.push(shift('2026-08-17', 1, { id: 'extra' }));
+    // Every window around the 15th lies inside the vacation: only the daily limit applies.
+    const peak = tracker.checkPeak7DayWindow(shifts, '2026-08-15');
     assert.equal(peak.totalHoursLast7Days, 0);
     assert.equal(peak.isOverLimit, false);
-    assert.deepEqual(tracker.findVacationDaysOverLimit(shifts), [{ date: '2026-08-07', hours: 9 }]);
+    assert.deepEqual(tracker.findVacationDaysOverLimit(shifts), [{ date: '2026-08-17', hours: 9 }]);
 });
 
-test('vacation days next to term days only count the term days toward 28 hours', () => {
+test('a week that mixes term days and vacation days is held to 28 hours with all its hours', () => {
     const tracker = new HoursTracker(parseVacationPeriods(['2026-08-01~2026-08-31']));
     const shifts = ['2026-07-28', '2026-07-29', '2026-07-30', '2026-07-31', '2026-08-01', '2026-08-02'].map(d => shift(d, 6));
     const peak = tracker.checkPeak7DayWindow(shifts, '2026-07-31');
-    assert.equal(peak.totalHoursLast7Days, 24);
+    assert.equal(peak.totalHoursLast7Days, 36);
+    assert.equal(peak.isOverLimit, true);
+    assert.equal(peak.mixesVacation, true);
+    // Term-only weeks are not flagged as mixed.
+    const term = new HoursTracker([]).checkPeak7DayWindow(shifts.slice(0, 4), '2026-07-29');
+    assert.equal(term.mixesVacation, false);
 });

@@ -5,7 +5,7 @@
 .view-content.jws-view-content { padding: 0; }
 
 .japan-work-dashboard {
-	--jws-store: var(--rk-faint);
+	--jws-store: var(--ap-label-3);
 	min-height: 100%;
 	padding: 22px 26px 30px;
 }
@@ -16,19 +16,9 @@
 :is(.japan-work-dashboard, .jws-modal) .store-2 { --jws-store: var(--color-pink); }
 :is(.japan-work-dashboard, .jws-modal) .store-3 { --jws-store: var(--color-blue); }
 :is(.japan-work-dashboard, .jws-modal) .store-4 { --jws-store: var(--color-orange); }
-.japan-work-dashboard.rk-paper .store-0 { --jws-store: #2a7f74; }
-.japan-work-dashboard.rk-paper .store-1 { --jws-store: #9e2b25; }
-.japan-work-dashboard.rk-paper .store-2 { --jws-store: #b8893a; }
-.japan-work-dashboard.rk-paper .store-3 { --jws-store: #1f1b17; }
-.japan-work-dashboard.rk-paper .store-4 { --jws-store: #d9704f; }
-.theme-dark .japan-work-dashboard.rk-paper .store-0 { --jws-store: #5fb3a6; }
-.theme-dark .japan-work-dashboard.rk-paper .store-1 { --jws-store: #d46a5f; }
-.theme-dark .japan-work-dashboard.rk-paper .store-2 { --jws-store: #d1a85a; }
-.theme-dark .japan-work-dashboard.rk-paper .store-3 { --jws-store: #ece4d4; }
-.theme-dark .japan-work-dashboard.rk-paper .store-4 { --jws-store: #e48a6c; }
 
 /* Header and toolbar */
-.japan-work-dashboard .jws-head { margin-bottom: 12px; }
+.japan-work-dashboard .jws-head.ap-bar-glass { margin: -22px -26px 14px; padding: 18px 26px 12px; }
 .japan-work-dashboard .jws-icon-btn { min-width: 30px; padding: 0 8px; }
 
 .japan-work-dashboard .jws-toolbar {
@@ -89,29 +79,20 @@
 	height: var(--jws-bar, 0%);
 	min-height: 2px;
 	border-radius: 3px 3px 0 0;
-	background: var(--rk-accent);
+	background: var(--ap-accent);
 }
 
-.japan-work-dashboard .jws-day-bar-fill.is-empty { background: var(--rk-hair); }
+.japan-work-dashboard .jws-day-bar-fill.is-empty { background: var(--ap-sep); }
 
 .japan-work-dashboard .jws-day-bar-label {
 	font-size: var(--font-ui-smaller);
-	color: var(--rk-faint);
+	color: var(--ap-label-3);
 	font-variant-numeric: tabular-nums;
 }
 
-.japan-work-dashboard.rk-paper .jws-day-bar-fill,
-.japan-work-dashboard.rk-paper .jws-trend-bar {
-	border: 1px solid var(--rk-border);
-	border-radius: 2px;
-	background: repeating-linear-gradient(-45deg, var(--rk-ink) 0 1.2px, transparent 1.2px 4px);
-}
-
-.japan-work-dashboard.rk-paper .jws-day-bar-fill.is-empty { border-style: dashed; background: none; }
-
 /* Income card */
-.japan-work-dashboard .jws-income-delta .is-up { color: var(--rk-good); font-weight: 600; }
-.japan-work-dashboard .jws-income-delta .is-down { color: var(--rk-danger); font-weight: 600; }
+.japan-work-dashboard .jws-income-delta .is-up { color: var(--ap-good); font-weight: 600; }
+.japan-work-dashboard .jws-income-delta .is-down { color: var(--ap-bad); font-weight: 600; }
 
 .japan-work-dashboard .jws-trend {
 	display: flex;
@@ -135,24 +116,19 @@
 	width: 100%;
 	height: var(--jws-bar, 4%);
 	border-radius: 3px 3px 0 0;
-	background: var(--rk-hair);
+	background: var(--ap-sep);
 }
 
-.japan-work-dashboard .jws-trend-col.is-current .jws-trend-bar { background: var(--rk-accent); }
-.japan-work-dashboard.rk-paper .jws-trend-col:not(.is-current) .jws-trend-bar { opacity: 0.45; }
-.japan-work-dashboard.rk-paper .jws-trend-col.is-current .jws-trend-bar {
-	border-color: var(--rk-accent);
-	background: repeating-linear-gradient(-45deg, var(--rk-accent) 0 2px, transparent 2px 4px);
-}
+.japan-work-dashboard .jws-trend-col.is-current .jws-trend-bar { background: var(--ap-accent); }
 
-.japan-work-dashboard .jws-trend-label { font-size: 10px; color: var(--rk-faint); }
+.japan-work-dashboard .jws-trend-label { font-size: 10px; color: var(--ap-label-3); }
 
 .japan-work-dashboard .jws-store-share {
 	display: flex;
 	height: 6px;
 	overflow: hidden;
 	border-radius: 99px;
-	background: var(--rk-hair);
+	background: var(--ap-sep);
 }
 
 .japan-work-dashboard .jws-store-seg { background: var(--jws-store); flex-basis: var(--jws-share, 0); }
@@ -179,44 +155,40 @@
 .japan-work-dashboard .jws-cal {
 	display: grid;
 	grid-template-columns: repeat(7, minmax(0, 1fr));
-	border-top: 1px solid var(--rk-border);
-	border-left: 1px solid var(--rk-hair);
+	border-radius: var(--ap-r-card);
+	background: var(--ap-page);
+	box-shadow: var(--ap-shadow-1);
+	overflow: hidden;
 }
 
 .japan-work-dashboard .jws-cal-dow {
-	padding: 6px 8px;
-	border-right: 1px solid var(--rk-hair);
-	border-bottom: 1px solid var(--rk-border);
-	font-size: var(--font-ui-smaller);
-	color: var(--rk-faint);
+	padding: 8px 10px 6px;
+	font: var(--ap-caption);
+	letter-spacing: 0.04em;
+	color: var(--ap-label-2);
+	background: var(--ap-group);
 }
 
 .japan-work-dashboard .jws-day {
 	position: relative;
 	min-height: 92px;
 	padding: 6px 6px 8px;
-	border-right: 1px solid var(--rk-hair);
-	border-bottom: 1px solid var(--rk-hair);
+	box-shadow: inset -0.5px -0.5px 0 var(--ap-sep);
 	cursor: pointer;
 }
 
-.japan-work-dashboard.rk-paper .jws-cal { border-left: none; }
-.japan-work-dashboard.rk-paper .jws-day,
-.japan-work-dashboard.rk-paper .jws-cal-dow { border-right-style: dashed; }
-.japan-work-dashboard.rk-paper .jws-day { border-bottom-style: dashed; }
-
 .japan-work-dashboard .jws-day:hover { background: var(--background-modifier-hover); }
 .japan-work-dashboard .jws-day.is-other-month .jws-day-number { opacity: 0.4; }
-.japan-work-dashboard .jws-day.is-weekend .jws-day-number { color: var(--rk-muted); }
-.japan-work-dashboard .jws-day.is-holiday .jws-day-number { color: var(--rk-danger); }
-.japan-work-dashboard .jws-day.is-selected { box-shadow: inset 0 0 0 2px var(--rk-accent); }
+.japan-work-dashboard .jws-day.is-weekend .jws-day-number { color: var(--ap-label-2); }
+.japan-work-dashboard .jws-day.is-holiday .jws-day-number { color: var(--ap-bad); }
+.japan-work-dashboard .jws-day.is-selected { box-shadow: inset 0 0 0 2px var(--ap-accent); border-radius: var(--ap-r-field); }
 
 .japan-work-dashboard .jws-day-number {
 	display: inline-block;
 	min-width: 22px;
 	font-size: var(--font-ui-small);
 	text-align: center;
-	color: var(--rk-text);
+	color: var(--ap-label);
 	font-variant-numeric: tabular-nums;
 }
 
@@ -226,30 +198,22 @@
 	color: var(--text-on-accent);
 }
 
-.japan-work-dashboard.rk-paper .jws-day.is-today .jws-day-number {
-	background: none;
-	color: var(--rk-accent);
-	font-weight: 700;
-	box-shadow: inset 0 0 0 1.5px var(--rk-accent);
-}
-
 /* The busiest 7 days, drawn on the calendar */
-.japan-work-dashboard .jws-day.in-peak { background: var(--rk-warn-soft); }
-.japan-work-dashboard .jws-day.in-peak.is-over { background: var(--rk-danger-soft); }
+.japan-work-dashboard .jws-day.in-peak { background: var(--ap-warn-soft); }
+.japan-work-dashboard .jws-day.in-peak.is-over { background: var(--ap-bad-soft); }
 .japan-work-dashboard .jws-day.in-peak::after {
 	content: "";
 	position: absolute;
 	inset: 3px 0;
-	border-top: 1.5px solid var(--rk-warn);
-	border-bottom: 1.5px solid var(--rk-warn);
+	border-top: 1.5px solid var(--ap-warn);
+	border-bottom: 1.5px solid var(--ap-warn);
 	pointer-events: none;
 }
-.japan-work-dashboard .jws-day.in-peak.is-over::after { border-color: var(--rk-danger); }
-.japan-work-dashboard .jws-day.peak-start::after { left: 3px; border-left: 1.5px solid var(--rk-warn); border-radius: 8px 0 0 8px; }
-.japan-work-dashboard .jws-day.peak-end::after { right: 3px; border-right: 1.5px solid var(--rk-warn); border-radius: 0 8px 8px 0; }
+.japan-work-dashboard .jws-day.in-peak.is-over::after { border-color: var(--ap-bad); }
+.japan-work-dashboard .jws-day.peak-start::after { left: 3px; border-left: 1.5px solid var(--ap-warn); border-radius: 8px 0 0 8px; }
+.japan-work-dashboard .jws-day.peak-end::after { right: 3px; border-right: 1.5px solid var(--ap-warn); border-radius: 0 8px 8px 0; }
 .japan-work-dashboard .jws-day.in-peak.is-over.peak-start::after,
-.japan-work-dashboard .jws-day.in-peak.is-over.peak-end::after { border-color: var(--rk-danger); }
-.japan-work-dashboard.rk-paper .jws-day.in-peak { background: transparent; }
+.japan-work-dashboard .jws-day.in-peak.is-over.peak-end::after { border-color: var(--ap-bad); }
 
 /* Shift chips */
 .japan-work-dashboard .jws-shift {
@@ -267,14 +231,8 @@
 	cursor: pointer;
 }
 
-.japan-work-dashboard.rk-paper .jws-shift {
-	border-left-width: 2px;
-	border-radius: 0;
-	background: transparent;
-}
-
 .japan-work-dashboard .jws-shift.is-recurring { border-left-style: dashed; }
-.japan-work-dashboard .jws-shift.is-paid-leave { font-style: italic; color: var(--rk-muted); }
+.japan-work-dashboard .jws-shift.is-paid-leave { font-style: italic; color: var(--ap-label-2); }
 .japan-work-dashboard .jws-shift-store { font-weight: 700; color: var(--jws-store); }
 .japan-work-dashboard .jws-shift-time { overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 
@@ -284,15 +242,15 @@
 	height: 6px;
 	margin-left: auto;
 	border-radius: 50%;
-	background: var(--rk-good);
+	background: var(--ap-good);
 }
 
 /* Week view */
 .japan-work-dashboard .jws-week {
 	display: grid;
 	grid-template-columns: repeat(7, minmax(0, 1fr));
-	border-top: 1px solid var(--rk-border);
-	border-left: 1px solid var(--rk-hair);
+	border-top: 1px solid var(--ap-sep);
+	border-left: 1px solid var(--ap-sep);
 }
 
 .japan-work-dashboard .jws-week-cell { min-height: 260px; }
@@ -307,9 +265,9 @@
 
 .japan-work-dashboard .jws-section-label { margin: 20px 0 8px; }
 .japan-work-dashboard .jws-card-head { display: flex; align-items: center; justify-content: space-between; }
-.japan-work-dashboard .jws-card-head .rk-label { margin: 0; }
+.japan-work-dashboard .jws-card-head .ap-label { margin: 0; }
 .japan-work-dashboard .jws-meter-item { margin-top: 12px; }
-.japan-work-dashboard .jws-meter-top { font-size: var(--font-ui-small); color: var(--rk-text); }
+.japan-work-dashboard .jws-meter-top { font-size: var(--font-ui-small); color: var(--ap-label); }
 
 .japan-work-dashboard .jws-details summary {
 	cursor: pointer;
@@ -320,7 +278,7 @@
 
 .japan-work-dashboard .jws-recurring-list { max-height: 260px; overflow-y: auto; }
 .japan-work-dashboard .jws-store-chip { color: var(--jws-store); font-weight: 600; }
-.japan-work-dashboard .jws-danger-icon:hover { color: var(--rk-danger); }
+.japan-work-dashboard .jws-danger-icon:hover { color: var(--ap-bad); }
 
 .japan-work-dashboard .weekly-pattern-grid { display: grid; gap: 6px; }
 
@@ -365,7 +323,7 @@
 :is(.japan-work-dashboard, .jws-modal) .jws-form { display: flex; flex-direction: column; gap: 10px; }
 :is(.japan-work-dashboard, .jws-modal) .jws-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 :is(.japan-work-dashboard, .jws-modal) .jws-field { display: flex; flex-direction: column; gap: 4px; }
-:is(.japan-work-dashboard, .jws-modal) .jws-field label { font-size: var(--font-ui-smaller); color: var(--rk-muted); }
+:is(.japan-work-dashboard, .jws-modal) .jws-field label { font-size: var(--font-ui-smaller); color: var(--ap-label-2); }
 :is(.japan-work-dashboard, .jws-modal) .jws-field :is(input, select) { width: 100%; }
 
 /* Modals */
@@ -373,7 +331,7 @@
 .jws-modal:has(.jws-policy-modal) { width: min(680px, 92vw); }
 .jws-modal .jws-preview { display: flex; justify-content: space-between; align-items: flex-end; margin: 14px 0 10px; }
 .jws-modal .jws-preview-right { text-align: right; }
-.jws-modal .jws-preview-value { font-family: var(--rk-font-num); font-size: 1.25em; font-weight: 600; }
+.jws-modal .jws-preview-value { font-family: var(--ap-font-round); font-size: 1.25em; font-weight: 600; }
 .jws-modal .jws-share-preview {
 	width: 100%;
 	height: 240px;
@@ -462,3 +420,7 @@
 @media (max-width: 600px) {
 	.jws-review-modal .jws-review-fields { grid-template-columns: 1fr 1fr; }
 }
+
+/* A missing break is said in words under the estimate */
+.jws-modal .jws-preview { flex-wrap: wrap; }
+.jws-modal .jws-break-missing { flex-basis: 100%; margin-top: var(--ap-s2); color: var(--ap-warn); }

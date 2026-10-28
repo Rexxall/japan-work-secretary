@@ -7,6 +7,17 @@ import { getStoreWageBand } from './data';
 export interface WageResult {
     totalHours: number;
     wageAmount: number;
+    /** No break was entered for a shift long enough to need one; hours are counted as scheduled. */
+    breakMissing: boolean;
+    /** The minimum break the employer must give (Labour Standards Act art. 34): 45 min over 6 h, 60 min over 8 h. */
+    requiredBreakMinutes: number;
+}
+
+/** Minimum break for a shift of this length. A rule for the employer, not proof a break was taken. */
+export function requiredBreakMinutes(shiftMinutes: number): number {
+    if (shiftMinutes > 8 * 60) return 60;
+    if (shiftMinutes > 6 * 60) return 45;
+    return 0;
 }
 
 export class WageCalculator {
@@ -24,14 +35,16 @@ export class WageCalculator {
     }
 
     /**
-     * Calculate wage for a single shift based on Mai Basket rules
+     * Wage for one shift: time bands, the entered break, holiday bonus, daily overtime and commuting.
      */
     public calculateShiftWage(date: string, startTime: string, endTime: string, isPaidLeave: boolean = false, customBreakMinutes?: number, storeName: string = ''): WageResult {
         const wageBand = getStoreWageBand(this.settings, storeName, date);
         if (isPaidLeave) {
             return {
                 totalHours: 8,
-                wageAmount: Math.floor(8 * Number(wageBand.baseWage))
+                wageAmount: Math.floor(8 * Number(wageBand.baseWage)),
+                breakMissing: false,
+                requiredBreakMinutes: 0
             };
         }
 
@@ -43,16 +56,13 @@ export class WageCalculator {
         }
 
         const totalMinutes = endMoment.diff(startMoment, 'minutes');
-        let totalHours = totalMinutes / 60;
 
-        // 1. Calculate break duration
-        let breakMinutes = 0;
-        if (customBreakMinutes !== undefined && customBreakMinutes >= 0) {
-            breakMinutes = customBreakMinutes;
-        } else {
-            if (totalHours > 8) breakMinutes = 60;
-            else if (totalHours > 6) breakMinutes = 45;
-        }
+        // 1. Break: only what was actually entered. The legal minimum is something the employer
+        // must give, not proof that it was taken, so an unentered break is not deducted; the shift
+        // is counted as scheduled (the stricter reading for the 28-hour check) and flagged.
+        const required = requiredBreakMinutes(totalMinutes);
+        const breakEntered = customBreakMinutes !== undefined && customBreakMinutes >= 0;
+        let breakMinutes = breakEntered ? customBreakMinutes : 0;
         // A break longer than the shift itself would give negative hours and wages.
         breakMinutes = Math.min(breakMinutes, totalMinutes);
         
@@ -112,7 +122,9 @@ export class WageCalculator {
 
         return {
             totalHours: Math.round(actualWorkingHours * 100) / 100,
-            wageAmount: Math.floor(totalWage)
+            wageAmount: Math.floor(totalWage),
+            breakMissing: !breakEntered && required > 0,
+            requiredBreakMinutes: required
         };
     }
 }

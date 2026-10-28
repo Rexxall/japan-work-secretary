@@ -109,27 +109,34 @@ export class HoursTracker {
     }
 
     /**
-     * Immigration Compliance: Any 7-day period must be within 28h.
-     * This checks all 7 possible 7-day windows that include the anchor date
-     * and returns the peak (maximum) sum.
+     * Work permission for students: 28 hours a week, or 8 hours a day during the school's long
+     * vacation. Every 7-day window that contains the anchor date is checked and the busiest is
+     * reported. A window made only of vacation days is left to the 8-hour daily check. A window
+     * that mixes term days and vacation days is held to 28 hours with all of its hours: the
+     * official page does not say how such a week is counted, so the stricter reading is used
+     * and the window is flagged.
      */
-    public checkPeak7DayWindow(shifts: Shift[], anchorDateStr: string = moment().format('YYYY-MM-DD')): HoursLimitResult & { peakWindowStart: string, peakWindowEnd: string } {
+    public checkPeak7DayWindow(shifts: Shift[], anchorDateStr: string = moment().format('YYYY-MM-DD')): HoursLimitResult & { peakWindowStart: string, peakWindowEnd: string, mixesVacation: boolean } {
         const anchorDate = moment(anchorDateStr, 'YYYY-MM-DD');
         let maxHours = 0;
         let peakStart = '';
         let peakEnd = '';
+        let peakMixed = false;
 
         for (let i = 0; i < 7; i++) {
             const start = anchorDate.clone().subtract(6 - i, 'days');
             const end = anchorDate.clone().add(i, 'days');
-            
+            let vacationDays = 0;
+            for (let d = start.clone(); d.isSameOrBefore(end, 'day'); d.add(1, 'day')) {
+                if (this.isVacationDay(d.format('YYYY-MM-DD'))) vacationDays++;
+            }
+            if (vacationDays === 7) continue;
+
             let currentWindowHours = 0;
             for (const shift of shifts) {
                 const shiftDate = moment(shift.date, 'YYYY-MM-DD');
-                if (shiftDate.isBetween(start, end, 'day', '[]')) {
-                    if (!shift.isPaidLeave && !this.isVacationDay(shift.date)) {
-                        currentWindowHours += shift.calculatedHours;
-                    }
+                if (shiftDate.isBetween(start, end, 'day', '[]') && !shift.isPaidLeave) {
+                    currentWindowHours += shift.calculatedHours;
                 }
             }
 
@@ -137,6 +144,7 @@ export class HoursTracker {
                 maxHours = currentWindowHours;
                 peakStart = start.format('YYYY-MM-DD');
                 peakEnd = end.format('YYYY-MM-DD');
+                peakMixed = vacationDays > 0;
             }
         }
 
@@ -150,10 +158,11 @@ export class HoursTracker {
             remainingHours: Math.max(0, Math.round((this.MAX_HOURS - maxHours) * 100) / 100),
             isOverLimit: maxHours > this.MAX_HOURS,
             peakWindowStart: peakStart,
-            peakWindowEnd: peakEnd
+            peakWindowEnd: peakEnd,
+            mixesVacation: peakMixed
         };
     }
-    
+
     /**
      * Calculate total hours worked in a fixed week (Mon-Sun).
      * Japanese schools often use fixed weeks.

@@ -146,7 +146,7 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
         this.shiftData.lastSyncAttemptTime = this.shiftData.lastSyncAttemptTime || null;
 	}
 
-    /** Re-render open dashboards, e.g. after the paper style is switched. */
+    /** Re-render open dashboards after a setting changes. */
     refreshDashboards() {
         for (const leaf of this.app.workspace.getLeavesOfType(DASHBOARD_VIEW_TYPE)) {
             if (leaf.view instanceof DashboardView) leaf.view.render();
