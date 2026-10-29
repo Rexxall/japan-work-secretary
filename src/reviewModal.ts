@@ -63,10 +63,10 @@ export class ShiftReviewModal extends Modal {
             check.onchange = () => { row.keep = check.checked; this.render(); };
 
             const fields = item.createDiv({ cls: 'jws-review-fields' });
-            const date = fields.createEl('input', { attr: { type: 'date', value: row.date, 'aria-label': 'Date' } });
-            const start = fields.createEl('input', { attr: { type: 'time', value: row.startTime, 'aria-label': 'Start' } });
-            const end = fields.createEl('input', { attr: { type: 'time', value: row.endTime, 'aria-label': 'End' } });
-            const store = fields.createEl('select', { attr: { 'aria-label': 'Store' } });
+            const date = fields.createEl('input', { attr: { type: 'date', value: row.date, 'aria-label': tr('Date', '日期') } });
+            const start = fields.createEl('input', { attr: { type: 'time', value: row.startTime, 'aria-label': tr('Start', '开始') } });
+            const end = fields.createEl('input', { attr: { type: 'time', value: row.endTime, 'aria-label': tr('End', '结束') } });
+            const store = fields.createEl('select', { attr: { 'aria-label': tr('Store', '店铺') } });
             const options = stores.includes(row.storeName) ? stores : [row.storeName, ...stores];
             options.forEach(name => {
                 const option = store.createEl('option', { text: name });

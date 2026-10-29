@@ -1,8 +1,8 @@
-import { moment } from 'obsidian';
+import { getLanguage } from 'obsidian';
 
-/** Obsidian sets moment's locale to its interface language, so this follows Settings → General → Language. */
+/** Follows Settings → General → Language. Currency and time zone never depend on it. */
 export function isZh(): boolean {
-	return moment.locale().toLowerCase().startsWith('zh');
+	return getLanguage().toLowerCase().startsWith('zh');
 }
 
 /** The Chinese text when the interface is Chinese, otherwise the English. */

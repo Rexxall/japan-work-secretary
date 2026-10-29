@@ -502,6 +502,7 @@ export class DashboardView extends ItemView {
         if (this.plugin.isCalendarSyncRunning()) toolbar.createSpan({ cls: 'ap-pill is-accent', text: tr('Syncing calendar…', '日历同步中…') });
 
         const contentWrapper = rootEl.createDiv({ cls: 'jws-body' });
+        this.renderStartOrSamples(contentWrapper);
 
         if (this.activeDashboardTab === 'calendar') {
             const currentShifts = this.getShiftsInRange(calcStart, calcEnd);
@@ -615,6 +616,23 @@ export class DashboardView extends ItemView {
      * The 28-hour rule is about any rolling 7 days, so the card shows the busiest window
      * around the selected date, how full it is, and the hours of each day in it.
      */
+    /** An empty dashboard offers a sample week; while samples are shown, a way to remove them. */
+    private renderStartOrSamples(parent: HTMLElement) {
+        const shifts = this.plugin.shiftData.shifts;
+        const samples = shifts.filter(shift => shift.isSample).length;
+        if (samples > 0) {
+            const box = parent.createDiv({ cls: 'ap-notice jws-sample-banner' });
+            box.createSpan({ cls: 'ap-grow', text: tr(`${samples} sample shifts at "Sample store" this week. They are never synced or exported.`, `本周有 ${samples} 个“示例店”的示例班次，不会同步到日历，也不会导出。`) });
+            box.createEl('button', { text: tr('Remove samples', '删除示例') }).onclick = () => void this.plugin.removeSamples();
+            return;
+        }
+        if (shifts.length > 0 || this.plugin.shiftData.recurringShifts.length > 0) return;
+        const card = parent.createDiv({ cls: 'ap-card jws-start' });
+        card.createEl('h3', { cls: 'ap-title', text: tr('No shifts yet', '还没有班次') });
+        card.createDiv({ cls: 'ap-sub', text: tr('Load a made-up week to see hours, estimated pay and the 28-hour check. Remove it in one click. To add your own, use "Add shift" above.', '先载入一周示例，看看工时、预计工资和 28 小时检查。一键就能删。记自己的班次点上方“加班次”。') });
+        card.createEl('button', { text: tr('Load a sample week', '载入示例一周'), cls: 'mod-cta' }).onclick = () => void this.plugin.loadSampleWeek();
+    }
+
     private renderPeakCard(parent: HTMLElement): { start: string, end: string, hours: number, isOverLimit: boolean } {
         const tracker = new HoursTracker(parseVacationPeriods(this.plugin.settings.vacationPeriods || []));
         const selected = this.selectedDate.format('YYYY-MM-DD');
@@ -662,7 +680,7 @@ export class DashboardView extends ItemView {
         if (vacationOver.length > 0) {
             card.createDiv({
                 cls: 'ap-notice is-danger jws-card-note',
-                text: `Over 8 h on a long-break day: ${vacationOver.map(day => `${moment(day.date).format('M/D')} ${day.hours} h`).join(', ')}`
+                text: tr(`Over 8 h on a long-break day: ${vacationOver.map(day => `${moment(day.date).format('M/D')} ${day.hours} h`).join(', ')}`, `长假日超过 8 小时：${vacationOver.map(day => `${moment(day.date).format('M/D')} ${day.hours} 小时`).join('、')}`)
             });
         }
 

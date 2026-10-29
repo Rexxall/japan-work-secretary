@@ -1,4 +1,5 @@
-import { App, PluginSettingTab, Setting, SettingDefinitionItem, moment } from 'obsidian';
+import { App, Notice, PluginSettingTab, Setting, SettingDefinitionItem, moment } from 'obsidian';
+import { AiError, DEFAULT_PROVIDER, ProviderId, TEST_COST_NOTE, describeFailure, listModels, presetFor, presets, testConnection } from './ai/providers';
 import { tr } from './i18n';
 import JapanWorkSecretaryPlugin from './main';
 import { StoreConfig, cloneDefaultStoreConfigs, normalizeStoreConfigs } from './data';
@@ -8,9 +9,14 @@ export { DEFAULT_INCOME_ALERTS, migrateIncomeAlerts } from './incomeAlerts';
 export type { IncomeAlert } from './incomeAlerts';
 
 export interface JapanWorkSecretarySettings {
-	/** Name of the secret in Obsidian's secret storage that holds the Gemini key. */
-	geminiSecretName: string;
-	// Before 1.4.0; migrated into secret storage on load.
+	/** AI service for reading schedules. Gemini uses its own API; the others speak the OpenAI chat format. */
+	aiProvider: ProviderId;
+	/** Empty means the service's own address. */
+	aiBaseUrl: string;
+	aiModel: string;
+	/** Name of the secret in Obsidian's secret storage that holds the key. */
+	aiSecretName: string;
+	// Gemini key before 1.4.0; migrated into secret storage on load.
 	geminiApiKey: string;
 	useMacKeychainForGeminiApiKey: boolean;
 	calendarName: string;
@@ -42,7 +48,10 @@ export interface JapanWorkSecretarySettings {
 }
 
 export const DEFAULT_SETTINGS: JapanWorkSecretarySettings = {
-	geminiSecretName: '',
+	aiProvider: DEFAULT_PROVIDER,
+	aiBaseUrl: '',
+	aiModel: '',
+	aiSecretName: '',
 	geminiApiKey: '',
 	useMacKeychainForGeminiApiKey: false,
 	calendarName: 'Work',
@@ -111,7 +120,18 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		moment.weekdays().forEach((name, day) => { weekdays[String(day)] = name; });
 
 		return [
-			{ name: tr('Gemini API key', 'Gemini API 密钥'), desc: tr('Optional, for reading shifts from text or photos. Choose or create a secret in Obsidian\'s secret storage; other plugins can use the same one.', '可不填，用于从文字或照片读取班次。在 Obsidian 的密钥库里选择或新建，其他插件也能共用。'), control: { type: 'secret', key: 'geminiSecretName' } },
+			{
+				type: 'group',
+				heading: tr('AI for reading schedules', 'AI 读班表'),
+				items: [
+					{ name: tr('Service', '服务商'), desc: tr('Optional. Only used when you read shifts from selected text or from images in a note; the text or image is sent to this service then, and nothing else. Wages, limits and the calendar work without it.', '可不设。只在“从选中文字／笔记图片读取班次”时使用，那时才把这段文字或图片发给这个服务，别的不发。工资、工时上限和日历都不需要它。'), control: { type: 'dropdown', key: 'aiProvider', options: Object.fromEntries(presets().map(p => [p.id, p.name])) } },
+					{ name: tr('Address', '接口地址'), desc: tr('Change it only for a proxy, another region or a local server.', '只有用代理、其他地区或本地服务时才需要改。'), control: { type: 'text', key: 'aiBaseUrl', placeholder: presetFor(settings.aiProvider).baseUrl } },
+					{ name: tr('Model', '模型'), desc: tr('Must read images if you read schedule photos. Type a name or fetch the list below.', '读排班照片时要选能识图的模型。直接填，或在下面取模型列表。'), control: { type: 'text', key: 'aiModel', placeholder: presetFor(settings.aiProvider).model } },
+					{ name: tr('Model list', '模型列表'), desc: tr('Asks the service which models this key can use. Free.', '向服务商查询这个密钥能用的模型，不收费。'), render: (setting: Setting) => this.renderModelList(setting) },
+					{ name: tr('API key', 'API 密钥'), desc: this.keyDesc(), control: { type: 'secret', key: 'aiSecretName' } },
+					{ name: tr('Test connection', '测试连接'), desc: TEST_COST_NOTE(), render: (setting: Setting) => this.renderTest(setting) }
+				]
+			},
 			{ name: tr('macOS Calendar name', 'macOS 日历名称'), desc: tr('Target calendar in macOS Calendar. Changing it syncs into the new calendar; existing events in the previous calendar are not removed automatically.', '写入 macOS 日历里的哪个日历。改了以后同步到新日历，旧日历里已有的事件不会自动删除。'), control: { type: 'text', key: 'calendarName', placeholder: DEFAULT_SETTINGS.calendarName } },
 			{ name: tr('Event title prefix', '事件标题前缀'), desc: tr('Calendar events are titled "<prefix>: <store>". Existing events are matched by a hidden marker, so changing this only renames them on the next sync.', '日历事件标题为“前缀: 店名”。已有事件靠隐藏标记识别，改前缀只会在下次同步时改名。'), control: { type: 'text', key: 'eventTitlePrefix', placeholder: DEFAULT_SETTINGS.eventTitlePrefix } },
 			{ name: tr('Export folder', '导出文件夹'), desc: tr('Where pay notes and .ics calendar files are saved.', '工资笔记和 .ics 日历文件的保存位置。'), control: { type: 'folder', key: 'exportFolder', placeholder: DEFAULT_SETTINGS.exportFolder } },
@@ -254,6 +274,13 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		else if (key === 'overtimeRate' || key === 'restDayWorkRate') { const rate = Number(value); if (!(rate >= 1)) return; next = rate; }
 		else if (typeof value === 'number') next = Math.max(0, value);
 		else if (typeof value === 'string' && field !== 'label') next = value.trim();
+		if (key === 'aiProvider') {
+			// A new service brings its own address and suggested model.
+			next = presetFor(asText(value)).id;
+			settings.aiBaseUrl = '';
+			settings.aiModel = '';
+			this.models = undefined;
+		}
 		writePath(settings, key, next);
 		// A renamed store keeps its old name as an alias, so shifts saved under it still match.
 		const storeMatch = /^storeConfigs\.(\d+)\.name$/.exec(key);
@@ -265,7 +292,68 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		await this.plugin.saveSettings();
 		this.plugin.refreshDashboards();
 		// Names, dates and amounts show on list entries and in the band strip.
-		if (/name|label|amount|period|enabled|effectiveFrom|Wage$/.test(field)) this.update();
+		if (/name|label|amount|period|enabled|effectiveFrom|Wage$|^ai/.test(field)) this.update();
+	}
+
+	/** Models fetched in this session. */
+	private models: string[] | undefined;
+
+	private keyDesc(): DocumentFragment {
+		const preset = presetFor(this.plugin.settings.aiProvider);
+		const frag = new DocumentFragment();
+		frag.appendText(tr('Stored in Obsidian\'s secret storage on this device, not in the plugin\'s settings file, so it does not sync; pick it again on each device. ', '存在本机 Obsidian 的密钥库里，不在插件设置文件中，所以不会随库同步，换设备要重新选一次。'));
+		if (preset.keyOptional) frag.appendText(tr('Local servers may not need one.', '本地服务可以不填。'));
+		else if (preset.keyUrl) frag.createEl('a', { text: tr(`Get a ${preset.name} key`, `获取 ${preset.name} 密钥`), href: preset.keyUrl });
+		return frag;
+	}
+
+	private renderModelList(setting: Setting) {
+		const settings = this.plugin.settings;
+		const models = this.models;
+		if (models?.length) {
+			const current = settings.aiModel || presetFor(settings.aiProvider).model;
+			setting.addDropdown(dropdown => {
+				const options: Record<string, string> = { '': tr('Choose a model…', '选择模型…') };
+				for (const m of models) options[m] = m;
+				dropdown.addOptions(options).setValue(models.includes(current) ? current : '').onChange(value => {
+					if (value) void this.setControlValue('aiModel', value);
+				});
+			});
+		}
+		setting.addButton(button => button.setButtonText(models ? tr('Fetch again', '重新获取') : tr('Fetch list', '获取列表')).onClick(async () => {
+			button.setDisabled(true);
+			setting.setDesc(tr('Asking the service…', '正在查询…'));
+			try {
+				this.models = await listModels(this.plugin.aiTarget());
+				this.update();
+			} catch (error) {
+				setting.setDesc(error instanceof AiError ? error.message : describeFailure('network'));
+				button.setDisabled(false);
+			}
+		}));
+	}
+
+	private renderTest(setting: Setting) {
+		let diagnostics = '';
+		let copyEl: HTMLElement | undefined;
+		setting.addButton(button => button.setButtonText(tr('Test', '测试')).onClick(async () => {
+			button.setDisabled(true);
+			setting.setDesc(tr('Testing…', '测试中…'));
+			const result = await testConnection(this.plugin.aiTarget(), `${this.plugin.manifest.name} ${this.plugin.manifest.version}`);
+			diagnostics = result.diagnostics;
+			setting.setDesc(result.message);
+			setting.descEl.toggleClass('mod-warning', !result.ok);
+			if (result.models?.length) this.models = result.models;
+			copyEl?.toggle(true);
+			button.setDisabled(false);
+		}));
+		setting.addExtraButton(extra => {
+			copyEl = extra.extraSettingsEl;
+			extra.setIcon('copy').setTooltip(tr('Copy diagnostics (no key, no shift content)', '复制诊断信息（不含密钥和班次内容）')).onClick(() => {
+				void navigator.clipboard.writeText(diagnostics).then(() => new Notice(tr('Diagnostics copied. They contain no key and no shift content.', '诊断信息已复制，不含密钥和班次内容。')));
+			});
+		});
+		copyEl?.toggle(false);
 	}
 
 	private async saveAndUpdate() {

@@ -21,6 +21,8 @@ import {
 } from './calendarSyncPlanner';
 import { HolidayUtility } from './holidayUtility';
 import { SecureSecretStore } from './secureSecretStore';
+import { AiError, AiTarget, presetFor, serviceLabel } from './ai/providers';
+import { TaskProgress } from './ai/progress';
 
 export interface JapanWorkSecretaryPluginData {
     settings: JapanWorkSecretarySettings;
@@ -127,6 +129,15 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
         // Load data, handling cases where it might be empty or missing properties
 		const loadedData = (await this.loadData()) as Partial<JapanWorkSecretaryPluginData> | null;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData?.settings);
+        // Before 1.5.0 the only service was Gemini, with its key under geminiSecretName.
+        const saved = (loadedData?.settings ?? {}) as Partial<JapanWorkSecretarySettings> & { geminiSecretName?: string };
+        if (saved.geminiSecretName && !saved.aiSecretName) {
+            this.settings.aiProvider = 'gemini';
+            this.settings.aiBaseUrl = presetFor('gemini').baseUrl;
+            this.settings.aiModel = presetFor('gemini').model;
+            this.settings.aiSecretName = saved.geminiSecretName;
+        }
+        delete (this.settings as { geminiSecretName?: string }).geminiSecretName;
         this.settings.storeConfigs = normalizeStoreConfigs(this.settings.storeConfigs);
         // Read the saved settings, not the merged ones: the defaults already carry a list of alerts,
         // which would hide the on/off switches saved by 1.1.x.
@@ -191,18 +202,24 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
         return settingsToSave;
     }
 
-    /** The key is kept in Obsidian's secret storage; settings only hold the secret's name. */
-    getGeminiApiKey(): string {
-        const name = this.settings.geminiSecretName;
-        return (name && this.app.secretStorage.getSecret(name)) || '';
+    /** The service, address and model from settings; the key from Obsidian's secret storage. */
+    aiTarget(): AiTarget {
+        const preset = presetFor(this.settings.aiProvider);
+        const name = this.settings.aiSecretName;
+        return {
+            provider: preset.id,
+            baseUrl: this.settings.aiBaseUrl || preset.baseUrl,
+            model: this.settings.aiModel || preset.model,
+            apiKey: (name && this.app.secretStorage.getSecret(name)) || ''
+        };
     }
 
     /**
-     * Before 1.4.0 the key lived in the macOS Keychain or in plugin data. Move it
+     * Before 1.4.0 the Gemini key lived in the macOS Keychain or in plugin data. Move it
      * into secret storage once, under a shared name other plugins can pick too.
      */
     private async initializeGeminiApiKey() {
-        if (this.settings.geminiSecretName) return;
+        if (this.settings.aiSecretName) return;
         let legacyKey = this.settings.geminiApiKey || '';
         if (!legacyKey && this.settings.useMacKeychainForGeminiApiKey) {
             try {
@@ -217,11 +234,26 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
         const shared = storage.getSecret(SHARED_GEMINI_SECRET);
         const name = !shared || shared === legacyKey ? SHARED_GEMINI_SECRET : PLUGIN_GEMINI_SECRET;
         storage.setSecret(name, legacyKey);
-        this.settings.geminiSecretName = name;
+        const gemini = presetFor('gemini');
+        Object.assign(this.settings, { aiProvider: gemini.id, aiBaseUrl: gemini.baseUrl, aiModel: gemini.model, aiSecretName: name });
         this.settings.geminiApiKey = '';
         this.settings.useMacKeychainForGeminiApiKey = false;
         // The Keychain entry is left in place: other vaults may still read it until they upgrade too.
         await this.saveSettings();
+    }
+
+    openSettings() {
+        const setting = (this.app as typeof this.app & { setting?: { open(): void; openTabById(id: string): void } }).setting;
+        setting?.open();
+        setting?.openTabById(this.manifest.id);
+    }
+
+    /** Shows why reading failed, with one next step: settings when nothing is set up, otherwise Retry. */
+    private failAi(progress: TaskProgress, error: unknown, retry: () => void) {
+        if (progress.cancelled || (error instanceof AiError && error.kind === 'cancelled')) return;
+        const setup = error instanceof AiError && (error.kind === 'no-key' || error.kind === 'auth');
+        if (setup) progress.fail(errorMessage(error), () => this.openSettings(), tr('Open settings', '打开设置'));
+        else progress.fail(errorMessage(error), retry);
     }
 
     async refreshHolidayCache(force: boolean = false) {
@@ -255,6 +287,28 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
     /**
      * Helper to process raw shift data (calc wage, de-duplicate, save, sync)
      */
+    /** A made-up week this week, so a new dashboard shows hours, pay and the 28-hour check at once. */
+    async loadSampleWeek() {
+        const monday = moment().startOf('isoWeek');
+        const store = tr('Sample store', '示例店');
+        const plan: [number, string, string][] = [[0, '17:00', '22:00'], [2, '17:00', '22:00'], [4, '18:00', '23:00'], [5, '09:00', '15:00'], [6, '10:00', '16:00']];
+        const calculator = new WageCalculator(this.settings);
+        for (const [offset, startTime, endTime] of plan) {
+            const date = monday.clone().add(offset, 'day').format('YYYY-MM-DD');
+            const wage = calculator.calculateShiftWage(date, startTime, endTime, false, undefined, store);
+            this.shiftData.shifts.push({ id: `sample-${date}`, date, startTime, endTime, storeName: store, calculatedHours: wage.totalHours, calculatedWage: wage.wageAmount, isSample: true });
+        }
+        await this.saveDataStore();
+        this.refreshDashboards();
+    }
+
+    async removeSamples() {
+        this.shiftData.shifts = this.shiftData.shifts.filter(shift => !shift.isSample);
+        await this.saveDataStore();
+        this.refreshDashboards();
+        new Notice(tr('Sample shifts removed.', '示例班次已删除。'));
+    }
+
     async processRawShifts(rawShifts: Shift[]) {
         if (!this.ensureScheduleMutationAllowed()) return;
         if (rawShifts.length === 0) {
@@ -333,18 +387,22 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
     }
 
     async parseShiftSelection(selection: string) {
-        new Notice(tr('Reading shifts from the selection...', '正在从选中文字读取班次……'));
+        const target = this.aiTarget();
+        const progress = new TaskProgress(tr('Reading shifts', '读取班次'), 'jws');
+        progress.step(tr(`Waiting for ${serviceLabel(target)}…`, `等待 ${serviceLabel(target)} 回复…`), 1, 2);
         try {
-            const parser = new AIParser(this.getGeminiApiKey(), this.settings.storeConfigs);
-            this.reviewDrafts(await parser.parseText(selection), tr('the selected text', '选中的文字'));
+            const drafts = await new AIParser(target, this.settings.storeConfigs).parseText(selection, progress.token);
+            if (progress.cancelled) return;
+            progress.close();
+            this.reviewDrafts(drafts, tr('the selected text', '选中的文字'));
         } catch (error) {
-            new Notice(tr(`Could not read the selection: ${errorMessage(error)}`, `没能读取选中的文字：${errorMessage(error)}`));
+            this.failAi(progress, error, () => void this.parseShiftSelection(selection));
         }
     }
 
     /** Reads every image embedded in the active note, then shows one review for all of them. */
-    async parseShiftImage() {
-        const activeFile = this.app.workspace.getActiveFile();
+    async parseShiftImage(note?: TFile) {
+        const activeFile = note ?? this.app.workspace.getActiveFile();
         if (!activeFile) {
             new Notice(tr('Open a note with a schedule image first.', '请先打开含排班图片的笔记。'));
             return;
@@ -361,23 +419,33 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
             return;
         }
 
-        let parser: AIParser;
-        try {
-            parser = new AIParser(this.getGeminiApiKey(), this.settings.storeConfigs);
-        } catch (error) {
-            new Notice(errorMessage(error));
-            return;
-        }
-        new Notice(tr(images.length === 1 ? 'Reading 1 image...' : `Reading ${images.length} images...`, `正在读取 ${images.length} 张图片……`));
+        const target = this.aiTarget();
+        const parser = new AIParser(target, this.settings.storeConfigs);
+        const service = serviceLabel(target);
+        const progress = new TaskProgress(tr('Reading shifts', '读取班次'), 'jws');
         const drafts: ParsedShiftDraft[] = [];
-        for (const image of images) {
+        const failed: string[] = [];
+        let lastError: unknown;
+        for (const [index, image] of images.entries()) {
+            if (progress.cancelled) return;
+            progress.step(tr(`${image.name}: waiting for ${service}…`, `${image.name}：等待 ${service} 回复…`), index + 1, images.length + 1);
             try {
                 const data = arrayBufferToBase64(await this.app.vault.readBinary(image));
-                drafts.push(...await parser.parseImage(data, IMAGE_TYPES[image.extension.toLowerCase()]));
+                drafts.push(...await parser.parseImage(data, IMAGE_TYPES[image.extension.toLowerCase()], progress.token));
             } catch (error) {
-                new Notice(tr(`Could not read ${image.name}: ${errorMessage(error)}`, `没能读取 ${image.name}：${errorMessage(error)}`));
+                if (progress.cancelled) return;
+                lastError = error;
+                failed.push(image.name);
+                // Without a key or with a rejected key, the other images would fail the same way.
+                if (error instanceof AiError && (error.kind === 'no-key' || error.kind === 'auth')) break;
             }
         }
+        if (drafts.length === 0 && lastError) {
+            this.failAi(progress, lastError, () => void this.parseShiftImage(activeFile));
+            return;
+        }
+        progress.close();
+        if (failed.length) new Notice(tr(`Could not read ${failed.join(', ')}. The other images are in the review.`, `没能读取 ${failed.join('、')}，其余图片的结果在核对窗口里。`), 8000);
         this.reviewDrafts(drafts, images.length === 1 ? images[0].name : tr(`${images.length} images`, ` ${images.length} 张图片`));
     }
 
@@ -404,12 +472,16 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
     }
 
     /** A note with every shift and the estimated pay, to compare with the payslip. */
-    async savePayNote(shifts: Shift[], start: string, end: string, total: number) {
+    async savePayNote(allShifts: Shift[], start: string, end: string, total: number) {
+        // Sample shifts are for looking around only.
+        const shifts = allShifts.filter(shift => !shift.isSample);
+        if (shifts.length !== allShifts.length) total = shifts.reduce((sum, shift) => sum + (shift.calculatedWage || 0), 0);
         const file = await this.writeVaultFile(`Pay ${start} to ${end}.md`, buildPayNote(shifts, start, end, total, new Date()));
         await this.app.workspace.getLeaf(true).openFile(file);
     }
 
-    async exportIcs(shifts: Shift[]) {
+    async exportIcs(allShifts: Shift[]) {
+        const shifts = allShifts.filter(shift => !shift.isSample);
         const file = await this.writeVaultFile('shifts.ics', buildShiftsIcs(shifts, this.settings.eventTitlePrefix, new Date()));
         new Notice(tr(`Saved ${file.path}. Open it to add ${shifts.length === 1 ? 'the shift' : 'the shifts'} to your calendar.`, `已保存 ${file.path}。打开它即可把班次加入日历。`));
     }

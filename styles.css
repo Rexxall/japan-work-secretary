@@ -515,7 +515,10 @@
 /* Hours and pay share one card; the figures sit on a row split by a hairline */
 .japan-work-dashboard .jws-summary { display: flex; flex-direction: column; }
 .japan-work-dashboard .jws-summary-stats { flex: 1; align-items: start; margin: 0 calc(-1 * var(--ap-s4)); }
-.japan-work-dashboard .jws-summary-stats .ap-stat-value { font-size: 26px; line-height: 32px; }
+.japan-work-dashboard .jws-summary { min-width: 0; container-type: inline-size; }
+.japan-work-dashboard .jws-summary-stats .ap-stat { min-width: 0; }
+/* Big enough to read at a glance, small enough that six-figure pay stays inside the card. */
+.japan-work-dashboard .jws-summary-stats .ap-stat-value { font-size: clamp(18px, 9cqi, 26px); line-height: 1.25; white-space: nowrap; }
 
 /* Calendar heading: label on the left, month or week on the right */
 .japan-work-dashboard .jws-cal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ap-s3); margin-bottom: var(--ap-s2); }
@@ -878,3 +881,19 @@
 /* A missing break is said in words under the estimate */
 .jws-modal .jws-preview { flex-wrap: wrap; }
 .jws-modal .jws-break-missing { flex-basis: 100%; margin-top: var(--ap-s2); color: var(--ap-warn); }
+
+/* Empty dashboard and sample banner. */
+.japan-work-dashboard .jws-start { text-align: center; padding: 20px; margin-bottom: 12px; }
+.japan-work-dashboard .jws-start .ap-sub { margin: 6px auto 14px; max-width: 460px; }
+.japan-work-dashboard .jws-sample-banner { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 12px; border-radius: 10px; }
+
+/* AI task progress, inside Obsidian's own notice. */
+.jws-task-notice { min-width: 260px; }
+.jws-task-notice .jws-task-title { font-weight: 600; }
+.jws-task-notice .jws-task-count { font-weight: 400; color: var(--text-muted); }
+.jws-task-notice .jws-task-step { margin-top: 4px; color: var(--text-muted); }
+.jws-task-notice .jws-task-step.is-error { color: var(--text-error); }
+.jws-task-notice .jws-task-bar { margin-top: 8px; height: 4px; border-radius: 2px; background: var(--background-modifier-border); overflow: hidden; }
+.jws-task-notice .jws-task-bar-fill { height: 100%; background: var(--interactive-accent); transition: width 200ms ease; }
+.jws-task-notice .jws-task-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+@media (prefers-reduced-motion: reduce) { .jws-task-notice .jws-task-bar-fill { transition: none; } }

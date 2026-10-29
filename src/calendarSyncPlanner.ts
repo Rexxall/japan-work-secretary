@@ -102,7 +102,7 @@ export function collectCalendarSyncShifts(
     createRecurringShift: RecurringShiftFactory
 ): Shift[] {
     const selectedManualShifts = data.shifts
-        .filter(shift => includeAllManualShifts || isDateInRange(shift.date, startDate, endDate))
+        .filter(shift => !shift.isSample && (includeAllManualShifts || isDateInRange(shift.date, startDate, endDate)))
         .map(shift => ({ ...shift }));
 
     const shifts = [...selectedManualShifts];

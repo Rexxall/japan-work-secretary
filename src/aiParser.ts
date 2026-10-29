@@ -1,7 +1,5 @@
-import { requestUrl } from 'obsidian';
 import { Shift, StoreConfig, normalizeStoreConfigs } from './data';
-
-const GEMINI_MODEL = 'gemini-2.5-flash';
+import { AiTarget, CancelToken, ChatInput, chat, parseJsonArray } from './ai/providers';
 
 /** Fields the model is asked for; everything else is worked out locally. */
 export interface ParsedShiftDraft {
@@ -10,8 +8,6 @@ export interface ParsedShiftDraft {
     endTime: string;
     storeName: string;
 }
-
-type GeminiPart = { text: string } | { inlineData: { mimeType: string; data: string } };
 
 /**
  * Turn the model's reply into shift drafts. Rows with a malformed date or time are
@@ -41,8 +37,7 @@ export function draftToShift(draft: ParsedShiftDraft): Shift {
 export class AIParser {
     private storeConfigs: StoreConfig[];
 
-    constructor(private apiKey: string, storeConfigs: StoreConfig[] = [], private now: Date = new Date()) {
-        if (!apiKey) throw new Error('Add a Gemini API key in settings first.');
+    constructor(private target: AiTarget, storeConfigs: StoreConfig[] = [], private now: Date = new Date()) {
         this.storeConfigs = normalizeStoreConfigs(storeConfigs);
     }
 
@@ -78,32 +73,17 @@ export class AIParser {
     }
 
     /** Parse an image already read from the vault, as base64. */
-    public async parseImage(base64Image: string, mimeType: string): Promise<ParsedShiftDraft[]> {
-        return this.generate([{ text: this.parsePrompt }, { inlineData: { data: base64Image, mimeType } }]);
+    public async parseImage(base64Image: string, mimeType: string, token?: CancelToken): Promise<ParsedShiftDraft[]> {
+        return this.generate({ prompt: this.parsePrompt, image: { data: base64Image, mimeType }, json: true }, token);
     }
 
-    public async parseText(text: string): Promise<ParsedShiftDraft[]> {
-        return this.generate([{ text: this.parsePrompt }, { text: `Here is the text to parse:\n\n${text}` }]);
+    public async parseText(text: string, token?: CancelToken): Promise<ParsedShiftDraft[]> {
+        return this.generate({ prompt: `${this.parsePrompt}\n\nHere is the text to parse:\n\n${text}`, json: true }, token);
     }
 
-    private async generate(parts: GeminiPart[]): Promise<ParsedShiftDraft[]> {
-        // The key goes in a header, never in the URL, so it does not end up in logs or error messages.
-        const response = await requestUrl({
-            url: `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-            method: 'POST',
-            contentType: 'application/json',
-            headers: { 'x-goog-api-key': this.apiKey },
-            body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { temperature: 0.1, responseMimeType: 'application/json' } }),
-            throw: false
-        });
-        if (response.status >= 400) {
-            let detail: string | undefined;
-            try { detail = (response.json as { error?: { message?: string } } | undefined)?.error?.message; } catch { detail = undefined; }
-            throw new Error(`Gemini request failed (${response.status})${detail ? `: ${detail}` : ''}`);
-        }
-        const body = response.json as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-        const reply = (body.candidates?.[0]?.content?.parts ?? []).map(part => part.text ?? '').join('');
-        if (!reply) throw new Error('Gemini returned no text.');
-        return parseShiftReply(reply, name => this.normalizeStoreName(name));
+    private async generate(input: ChatInput, token?: CancelToken): Promise<ParsedShiftDraft[]> {
+        const reply = await chat(this.target, input, 90000, token);
+        // json_object mode makes some services wrap the list in an object.
+        return parseShiftReply(JSON.stringify(parseJsonArray(reply)), name => this.normalizeStoreName(name));
     }
 }

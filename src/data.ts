@@ -9,6 +9,8 @@ export interface Shift {
     isPaidLeave?: boolean;
     breakMinutes?: number; // Custom break override in minutes
     isSynced?: boolean; // Track if synced to calendar
+    /** Sample shift loaded from the empty dashboard; never synced or exported, removed together. */
+    isSample?: boolean;
 }
 
 export interface CalendarSyncRecord {
