@@ -1,5 +1,5 @@
 import { moment } from 'obsidian';
-import type { Moment } from 'moment';
+type Moment = ReturnType<typeof moment>;
 import { JapanWorkSecretarySettings } from './settings';
 import { HolidayUtility } from './holidayUtility';
 import { getStoreWageBand } from './data';

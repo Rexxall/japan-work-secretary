@@ -5,9 +5,10 @@ import { HoursTracker, parseVacationPeriods } from './hoursTracker';
 import { WageCalculator } from './wageCalculator';
 import { HolidayUtility } from './holidayUtility';
 import { ExchangeRateSnapshot, Shift, ShiftTemplatePattern, buildRecurringInstanceId, getStoreColorClass, getStoreShortName, getStoreWageBand, normalizeStoreConfigs, parseRecurringInstanceId } from './data';
-import type { Moment } from 'moment';
 import { PolicyExplanationModal } from './policyModal';
 import { appendMixedWeekNote, breakMissingText } from './ruleNotes';
+
+type Moment = ReturnType<typeof moment>;
 
 export const DASHBOARD_VIEW_TYPE = 'japan-work-dashboard-view';
 
