@@ -111,8 +111,8 @@
 
 /* ---------- Grouped list (content layer: solid) ---------- */
 .ap-section { display: grid; gap: var(--ap-s2); margin-block: var(--ap-s5); }
-.ap-section-title { font: var(--ap-headline); color: var(--ap-label); padding-inline: var(--ap-s1); }
-.ap-section-note { font: var(--ap-callout); color: var(--ap-label-2); padding-inline: var(--ap-s1); margin: 0; }
+.ap-section-title { font: var(--ap-headline); color: var(--ap-label); padding-inline: var(--ap-s4); }
+.ap-section-note { font: var(--ap-callout); color: var(--ap-label-2); padding-inline: var(--ap-s4); margin: 0; }
 .ap-group { background: var(--ap-group); border-radius: var(--ap-r-group); box-shadow: var(--ap-hair); overflow: hidden; }
 .ap-row { display: flex; align-items: center; gap: var(--ap-s3); min-height: 44px; padding: var(--ap-s2) var(--ap-s4); position: relative; }
 .ap-row + .ap-row::before { content: ""; position: absolute; top: 0; right: 0; left: var(--ap-s4); border-top: 0.5px solid var(--ap-sep); }
@@ -137,7 +137,9 @@
 .ap-settings .setting-item:not(.setting-item-heading):has(+ .setting-item-heading),
 .ap-settings .setting-item:not(.setting-item-heading):last-child,
 .ap-settings .setting-item:not(.setting-item-heading):has(+ :not(.setting-item)) { border-bottom-left-radius: var(--ap-r-group); border-bottom-right-radius: var(--ap-r-group); }
-.ap-settings .setting-item-heading { background: none; padding: var(--ap-s6) var(--ap-s1) var(--ap-s2); min-height: 0; }
+.ap-settings .setting-item-heading { background: none; padding: var(--ap-s6) var(--ap-s4) var(--ap-s2); min-height: 0; }
+/* Obsidian pads plain rows 20px and list rows 16px; one inset puts every title, chevron, control and separator on the same two edges */
+.ap.ap-settings .setting-item { padding-inline: var(--ap-s4); }
 .ap-settings .setting-item-heading .setting-item-name { font: var(--ap-headline); }
 .ap-settings .setting-item-heading .setting-item-description { padding-top: 4px; }
 .ap-settings .setting-item-name { font: var(--ap-body); }
@@ -522,6 +524,7 @@
 
 /* Calendar heading: label on the left, month or week on the right */
 .japan-work-dashboard .jws-cal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ap-s3); margin-bottom: var(--ap-s2); }
+.japan-work-dashboard .jws-cal-head { padding-inline: var(--ap-s4); }
 .japan-work-dashboard .jws-cal-head .ap-label { margin: 0; }
 
 .japan-work-dashboard .jws-card-note { margin-top: 10px; }
@@ -730,7 +733,9 @@
 	gap: 14px;
 }
 
-.japan-work-dashboard .jws-section-label { margin: 20px 0 8px; }
+/* Section titles outside cards start where the text inside the cards starts */
+.japan-work-dashboard .ap-label.jws-section-label { margin: var(--ap-s5) 0 var(--ap-s2); padding-inline: var(--ap-s4); }
+.japan-work-dashboard .ap-card .ap-label.jws-section-label { padding-inline: 0; }
 .japan-work-dashboard .jws-card-head { display: flex; align-items: center; justify-content: space-between; }
 .japan-work-dashboard .jws-card-head .ap-label { margin: 0; }
 .japan-work-dashboard .jws-meter-item { margin-top: 12px; }
@@ -738,8 +743,16 @@
 
 .japan-work-dashboard .jws-details summary {
 	cursor: pointer;
-	list-style-position: outside;
+	list-style: none;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
 }
+
+/* The disclosure chevron sits on the right so the title lines up with the rest of the card */
+.japan-work-dashboard .jws-details summary::-webkit-details-marker { display: none; }
+.japan-work-dashboard .jws-details summary::after { content: "›"; color: var(--ap-label-3); font-size: 18px; line-height: 1; transition: transform 0.2s; }
+.japan-work-dashboard .jws-details[open] summary::after { transform: rotate(90deg); }
 
 .japan-work-dashboard .jws-details[open] summary { margin-bottom: 12px; }
 
@@ -885,7 +898,7 @@
 /* Empty dashboard and sample banner. */
 .japan-work-dashboard .jws-start { text-align: center; padding: 20px; margin-bottom: 12px; }
 .japan-work-dashboard .jws-start .ap-sub { margin: 6px auto 14px; max-width: 460px; }
-.japan-work-dashboard .jws-sample-banner { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 12px; border-radius: 10px; }
+.japan-work-dashboard .jws-sample-banner { display: flex; align-items: center; gap: 12px; padding: 10px var(--ap-s4); margin-bottom: 12px; border-radius: 10px; }
 
 /* AI task progress, inside Obsidian's own notice. */
 .jws-task-notice { min-width: 260px; }

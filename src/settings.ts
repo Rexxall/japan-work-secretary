@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab, Setting, SettingDefinitionItem, moment } from 'obsidian';
+import { App, Notice, PluginSettingTab, Setting, SettingDefinitionItem, SettingGroupItem, moment } from 'obsidian';
 import { AiError, DEFAULT_PROVIDER, ProviderId, TEST_COST_NOTE, describeFailure, listModels, presetFor, presets, testConnection } from './ai/providers';
 import { tr } from './i18n';
 import JapanWorkSecretaryPlugin from './main';
@@ -102,6 +102,27 @@ const bandLabels = () => [
 	{ key: 'commutingAllowance', label: tr('Daily commuting allowance', '每日交通费') }
 ];
 
+const KIT_CLS = 'ap ap-settings';
+/** Sub-pages render outside the tab's container, so their groups carry the kit classes themselves. */
+function kitPage<K extends string>(items: SettingDefinitionItem<K>[]): SettingDefinitionItem<K>[] {
+	const out: SettingDefinitionItem<K>[] = [];
+	let loose: SettingGroupItem<K>[] = [];
+	const flush = () => {
+		if (loose.length) out.push({ type: 'group', cls: KIT_CLS, items: loose });
+		loose = [];
+	};
+	for (const item of items) {
+		if ('type' in item && (item.type === 'group' || item.type === 'list')) {
+			flush();
+			out.push({ ...item, cls: [item.cls, KIT_CLS].filter(Boolean).join(' ') });
+		} else {
+			loose.push(item as SettingGroupItem<K>);
+		}
+	}
+	flush();
+	return out;
+}
+
 export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 	plugin: JapanWorkSecretaryPlugin;
 
@@ -162,7 +183,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					type: 'page' as const,
 					name: store.name,
 					desc: tr(`${(store.wageBands || []).length} wage band(s)`, `${(store.wageBands || []).length} 个时薪段`),
-					items: [
+					items: kitPage([
 						{ name: tr('Store name', '店名'), control: { type: 'text' as const, key: `storeConfigs.${i}.name` } },
 						{ name: tr('Aliases', '别名'), desc: tr('Other names or abbreviations for this store, comma separated. Used when reading schedules.', '这家店的其他叫法或简称，用逗号隔开。读排班时用。'), control: { type: 'text' as const, key: `storeConfigs.${i}.aliases` } },
 						{ name: tr('Short label', '简称'), desc: tr('Shown on small calendar chips.', '显示在日历的小胶囊上。'), control: { type: 'text' as const, key: `storeConfigs.${i}.shortName` } },
@@ -185,13 +206,13 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 								type: 'page' as const,
 								name: band.effectiveFrom === '0000-01-01' ? tr('Wage band from the start', '最初的时薪段') : tr(`Wage band from ${band.effectiveFrom}`, `${band.effectiveFrom} 起的时薪段`),
 								desc: tr(`Base ¥${band.baseWage}`, `基本 ¥${band.baseWage}`),
-								items: [
+								items: kitPage([
 									{ name: tr('Effective from', '生效日期'), desc: tr('YYYY-MM-DD. Earlier shifts keep the older band.', '格式 YYYY-MM-DD。这天之前的班次仍按旧时薪。'), control: { type: 'text' as const, key: `storeConfigs.${i}.wageBands.${j}.effectiveFrom`, validate: (v: string) => (!v.trim() || /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? undefined : tr('Use YYYY-MM-DD.', '请按 YYYY-MM-DD 填写。')) } },
 									...bandLabels().map(({ key, label }) => money(`storeConfigs.${i}.wageBands.${j}.${key}`, label))
-								]
+								])
 							}))
 						}
-					]
+					])
 				}))
 			},
 			{
@@ -221,12 +242,12 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 					type: 'page' as const,
 					name: alert.label || tr(`Alert ${i + 1}`, `提醒 ${i + 1}`),
 					desc: `${alert.enabled ? '' : tr('Off · ', '已关 · ')}¥${alert.amount.toLocaleString()} ${alert.period === 'annual' ? tr('a year', '每年') : tr('a month', '每月')}`,
-					items: [
+					items: kitPage([
 						{ name: tr('On', '启用'), control: { type: 'toggle' as const, key: `incomeAlerts.${i}.enabled` } },
 						{ name: tr('Name', '名称'), control: { type: 'text' as const, key: `incomeAlerts.${i}.label` } },
 						{ name: tr('Amount (yen)', '金额（日元）'), control: { type: 'number' as const, key: `incomeAlerts.${i}.amount`, min: 0, step: 1 } },
 						{ name: tr('Period', '周期'), desc: tr('Annual counts the calendar year (January to December).', '每年按自然年（1 月到 12 月）计算。'), control: { type: 'dropdown' as const, key: `incomeAlerts.${i}.period`, options: { monthly: tr('Monthly', '每月'), annual: tr('Annual', '每年') } } }
-					]
+					])
 				}))
 			},
 			{

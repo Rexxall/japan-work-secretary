@@ -9,6 +9,7 @@
 - The interface follows Obsidian's language through `getLanguage()`; a few remaining English-only labels are translated.
 - Pay figures shrink to stay inside their card in narrow panes.
 - README in English and Chinese, with what is sent where and what it costs.
+- Settings rows, group titles, list chevrons and separators share one left and one right edge, on store and income-alert pages too. Section titles outside cards line up with the text inside them; *Add a single shift* opens with a chevron on the right.
 
 ## 1.4.0
 
