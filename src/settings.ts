@@ -1,36 +1,11 @@
-import { App, PluginSettingTab, SecretComponent, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting, SettingDefinitionItem, moment } from 'obsidian';
 import { tr } from './i18n';
 import JapanWorkSecretaryPlugin from './main';
-import { EffectiveWageBandConfig, StoreConfig, WageBandConfig, cloneDefaultStoreConfigs, normalizeStoreConfigs } from './data';
+import { StoreConfig, cloneDefaultStoreConfigs, normalizeStoreConfigs } from './data';
 
-export interface IncomeAlert {
-	label: string;
-	amount: number; // JPY
-	period: 'monthly' | 'annual';
-	enabled: boolean;
-}
-
-export const DEFAULT_INCOME_ALERTS: IncomeAlert[] = [
-	{ label: tr('Monthly income alert', '月收入提醒'), amount: 88000, period: 'monthly', enabled: false },
-	{ label: tr('Annual income alert 1', '年收入提醒 1'), amount: 1030000, period: 'annual', enabled: false },
-	{ label: tr('Annual income alert 2', '年收入提醒 2'), amount: 1300000, period: 'annual', enabled: false }
-];
-
-export function migrateIncomeAlerts(settings: Partial<JapanWorkSecretarySettings>): IncomeAlert[] {
-	if (Array.isArray(settings.incomeAlerts) && settings.incomeAlerts.length > 0) {
-		return settings.incomeAlerts.map(alert => ({
-			label: alert.label || 'Income alert',
-			amount: Number(alert.amount) || 0,
-			period: alert.period === 'annual' ? 'annual' : 'monthly',
-			enabled: !!alert.enabled
-		}));
-	}
-	const legacy = [settings.taxWall88k, settings.taxWall103k, settings.taxWall130k];
-	return DEFAULT_INCOME_ALERTS.map((alert, index) => ({
-		...alert,
-		enabled: typeof legacy[index] === 'boolean' ? !!legacy[index] : alert.enabled
-	}));
-}
+import { DEFAULT_INCOME_ALERTS, IncomeAlert } from './incomeAlerts';
+export { DEFAULT_INCOME_ALERTS, migrateIncomeAlerts } from './incomeAlerts';
+export type { IncomeAlert } from './incomeAlerts';
 
 export interface JapanWorkSecretarySettings {
 	/** Name of the secret in Obsidian's secret storage that holds the Gemini key. */
@@ -41,10 +16,14 @@ export interface JapanWorkSecretarySettings {
 	calendarName: string;
 	storeConfigs: StoreConfig[];
 	baseWage: number;
-	morningWage: number; // 开店～9:00
+	morningWage: number; // 05:00～09:00
 	eveningWage: number; // 17:00～22:00
-	nightWage: number; // 22:00～閉店
-	holidayBonus: number; // 日・祝日
+	nightWage: number; // 22:00～05:00 (深夜)
+	holidayBonus: number; // store allowance on Sundays and public holidays (日祝手当), per hour
+	/** Weekday the employer set as the statutory rest day (法定休日), 0 = Sunday; -1 when none is set. */
+	statutoryRestDay: number;
+	/** Pay rate for work on that day; the legal minimum is 1.35. */
+	restDayWorkRate: number;
 	commutingAllowance: number; // 交通费 (每日)
 	incomeAlerts: IncomeAlert[];
 	vacationPeriods: string[]; // "YYYY-MM-DD~YYYY-MM-DD"
@@ -73,6 +52,8 @@ export const DEFAULT_SETTINGS: JapanWorkSecretarySettings = {
 	eveningWage: 1440,
 	nightWage: 1720,
 	holidayBonus: 50,
+	statutoryRestDay: -1,
+	restDayWorkRate: 1.35,
 	commutingAllowance: 0,
 	incomeAlerts: DEFAULT_INCOME_ALERTS.map(alert => ({ ...alert })),
 	vacationPeriods: [],
@@ -86,409 +67,232 @@ export const DEFAULT_SETTINGS: JapanWorkSecretarySettings = {
 	holidayCacheUpdatedAt: 0,
 }
 
+/** Reads a value by a dotted path such as "storeConfigs.0.wageBands.1.baseWage". */
+function readPath(root: unknown, path: string): unknown {
+	return path.split('.').reduce<unknown>((value, part) => (value && typeof value === 'object' ? (value as Record<string, unknown>)[part] : undefined), root);
+}
+
+function writePath(root: object, path: string, value: unknown) {
+	const parts = path.split('.');
+	const last = parts.pop();
+	const target = parts.reduce<unknown>((obj, part) => (obj && typeof obj === 'object' ? (obj as Record<string, unknown>)[part] : undefined), root);
+	if (last && target && typeof target === 'object') (target as Record<string, unknown>)[last] = value;
+}
+
+const asText = (value: unknown) => (typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '');
+const lines = (value: unknown) => asText(value).split('\n').map(line => line.trim()).filter(Boolean);
+/** Keys whose stored value is a list but whose control is one text box. */
+const LIST_KEYS = new Set(['customHolidays', 'vacationPeriods']);
+
+const bandLabels = () => [
+	{ key: 'baseWage', label: tr('Base wage (09:00–17:00)', '基本时薪（09:00–17:00）') },
+	{ key: 'morningWage', label: tr('Morning wage (05:00–09:00)', '早班时薪（05:00–09:00）') },
+	{ key: 'eveningWage', label: tr('Evening wage (17:00–22:00)', '晚班时薪（17:00–22:00）') },
+	{ key: 'nightWage', label: tr('Late-night wage (22:00–05:00)', '深夜时薪（22:00–05:00）') },
+	{ key: 'holidayBonus', label: tr('Store bonus on Sundays and public holidays, per hour', '店铺周日和节假日津贴（每小时）') },
+	{ key: 'commutingAllowance', label: tr('Daily commuting allowance', '每日交通费') }
+];
+
 export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 	plugin: JapanWorkSecretaryPlugin;
 
 	constructor(app: App, plugin: JapanWorkSecretaryPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
+		this.containerEl.addClass('jws-settings', 'ap', 'ap-settings');
 	}
 
-	display(): void {
-		const { containerEl } = this;
-		containerEl.empty();
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		const settings = this.plugin.settings;
+		settings.storeConfigs = normalizeStoreConfigs(settings.storeConfigs);
+		const money = (key: string, name: string, desc?: string) => ({ name, desc, control: { type: 'number' as const, key, min: 0, step: 1 } });
+		const holidayUpdatedText = settings.holidayCacheUpdatedAt ? new Date(settings.holidayCacheUpdatedAt).toLocaleString() : tr('never', '从未');
+		const weekdays: Record<string, string> = { '-1': tr('Not set', '未设') };
+		moment.weekdays().forEach((name, day) => { weekdays[String(day)] = name; });
 
-		containerEl.addClass('jws-settings', 'ap', 'ap-settings');
-		const tabHeader = containerEl.createDiv({ cls: 'ap-seg jws-settings-tabs' });
-		const generalSec = containerEl.createDiv();
-		const wageSec = containerEl.createDiv();
-		const legalSec = containerEl.createDiv();
-
-		const sections = [
-			{ name: tr('General', '常规'), el: generalSec },
-			{ name: tr('Wage rates', '时薪'), el: wageSec },
-			{ name: tr('Compliance & cycle', '规则与周期'), el: legalSec }
+		return [
+			{ name: tr('Gemini API key', 'Gemini API 密钥'), desc: tr('Optional, for reading shifts from text or photos. Choose or create a secret in Obsidian\'s secret storage; other plugins can use the same one.', '可不填，用于从文字或照片读取班次。在 Obsidian 的密钥库里选择或新建，其他插件也能共用。'), control: { type: 'secret', key: 'geminiSecretName' } },
+			{ name: tr('macOS Calendar name', 'macOS 日历名称'), desc: tr('Target calendar in macOS Calendar. Changing it syncs into the new calendar; existing events in the previous calendar are not removed automatically.', '写入 macOS 日历里的哪个日历。改了以后同步到新日历，旧日历里已有的事件不会自动删除。'), control: { type: 'text', key: 'calendarName', placeholder: DEFAULT_SETTINGS.calendarName } },
+			{ name: tr('Event title prefix', '事件标题前缀'), desc: tr('Calendar events are titled "<prefix>: <store>". Existing events are matched by a hidden marker, so changing this only renames them on the next sync.', '日历事件标题为“前缀: 店名”。已有事件靠隐藏标记识别，改前缀只会在下次同步时改名。'), control: { type: 'text', key: 'eventTitlePrefix', placeholder: DEFAULT_SETTINGS.eventTitlePrefix } },
+			{ name: tr('Export folder', '导出文件夹'), desc: tr('Where pay notes and .ics calendar files are saved.', '工资笔记和 .ics 日历文件的保存位置。'), control: { type: 'folder', key: 'exportFolder', placeholder: DEFAULT_SETTINGS.exportFolder } },
+			{
+				type: 'group',
+				heading: tr('Default wage bands', '默认时薪段'),
+				items: [
+					{ name: tr('Across the day', '一天里的时薪'), render: (setting: Setting) => this.drawBandStrip(setting) },
+					...bandLabels().map(({ key, label }) => money(key, label))
+				]
+			},
+			{
+				type: 'list',
+				heading: tr('Wage bands by store', '各店时薪段'),
+				emptyState: tr('Each store can override the default wage bands above.', '每家店可以单独设时薪，覆盖上面的默认值。'),
+				addItem: { name: tr('Add store', '加一家店'), action: () => {
+					const name = tr(`Store ${settings.storeConfigs.length + 1}`, `店铺 ${settings.storeConfigs.length + 1}`);
+					const base = settings.storeConfigs[0] ?? cloneDefaultStoreConfigs()[0];
+					settings.storeConfigs.push({ ...base, id: `store-${Date.now().toString(36)}`, name, shortName: name, aliases: [name], colorClass: '' });
+					void this.saveAndUpdate();
+				} },
+				onDelete: index => {
+					if (settings.storeConfigs.length <= 1) return;
+					settings.storeConfigs.splice(index, 1);
+					void this.saveAndUpdate();
+				},
+				items: settings.storeConfigs.map((store, i) => ({
+					type: 'page' as const,
+					name: store.name,
+					desc: tr(`${(store.wageBands || []).length} wage band(s)`, `${(store.wageBands || []).length} 个时薪段`),
+					items: [
+						{ name: tr('Store name', '店名'), control: { type: 'text' as const, key: `storeConfigs.${i}.name` } },
+						{ name: tr('Aliases', '别名'), desc: tr('Other names or abbreviations for this store, comma separated. Used when reading schedules.', '这家店的其他叫法或简称，用逗号隔开。读排班时用。'), control: { type: 'text' as const, key: `storeConfigs.${i}.aliases` } },
+						{ name: tr('Short label', '简称'), desc: tr('Shown on small calendar chips.', '显示在日历的小胶囊上。'), control: { type: 'text' as const, key: `storeConfigs.${i}.shortName` } },
+						{
+							type: 'list' as const,
+							heading: tr('Wage bands', '时薪段'),
+							addItem: { name: tr('Add wage band', '加时薪段'), action: () => {
+								const bands = store.wageBands || [];
+								const latest = bands[bands.length - 1];
+								if (latest) bands.push({ ...latest, effectiveFrom: new Date().toISOString().slice(0, 10) });
+								store.wageBands = bands;
+								void this.saveAndUpdate();
+							} },
+							onDelete: (bandIndex: number) => {
+								if ((store.wageBands || []).length <= 1) return;
+								store.wageBands?.splice(bandIndex, 1);
+								void this.saveAndUpdate();
+							},
+							items: (store.wageBands || []).map((band, j) => ({
+								type: 'page' as const,
+								name: band.effectiveFrom === '0000-01-01' ? tr('Wage band from the start', '最初的时薪段') : tr(`Wage band from ${band.effectiveFrom}`, `${band.effectiveFrom} 起的时薪段`),
+								desc: tr(`Base ¥${band.baseWage}`, `基本 ¥${band.baseWage}`),
+								items: [
+									{ name: tr('Effective from', '生效日期'), desc: tr('YYYY-MM-DD. Earlier shifts keep the older band.', '格式 YYYY-MM-DD。这天之前的班次仍按旧时薪。'), control: { type: 'text' as const, key: `storeConfigs.${i}.wageBands.${j}.effectiveFrom`, validate: (v: string) => (!v.trim() || /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? undefined : tr('Use YYYY-MM-DD.', '请按 YYYY-MM-DD 填写。')) } },
+									...bandLabels().map(({ key, label }) => money(`storeConfigs.${i}.wageBands.${j}.${key}`, label))
+								]
+							}))
+						}
+					]
+				}))
+			},
+			{
+				type: 'group',
+				heading: tr('Payroll and holidays', '工资月与节假日'),
+				items: [
+					{ name: tr('Payroll month starts on day', '工资月从几号开始'), desc: tr('For example 21 for a 21st-to-20th cycle. Use 1 for calendar months.', '例如 21 表示 21 日到次月 20 日。按自然月填 1。'), control: { type: 'number', key: 'payrollStartDay', min: 1, max: 28, step: 1 } },
+					{ name: tr('Extra holidays', '额外假日'), desc: tr('One date (YYYY-MM-DD) per line, paid like a public holiday.', '每行一个日期（YYYY-MM-DD），按法定假日计薪。'), control: { type: 'textarea', key: 'customHolidays', placeholder: '2026-05-01\n2026-12-31' } },
+					{ name: tr('Japanese public holidays', '日本法定假日'), desc: tr(`Downloaded from holidays-jp.github.io and cached for a week. Last updated: ${holidayUpdatedText}`, `从 holidays-jp.github.io 下载，缓存一周。上次更新：${holidayUpdatedText}`), render: (setting: Setting) => {
+						setting.addButton(button => button.setButtonText(tr('Refresh now', '立即刷新')).onClick(async () => {
+							await this.plugin.refreshHolidayCache(true);
+							this.update();
+						}));
+					} }
+				]
+			},
+			{
+				type: 'list',
+				heading: tr('Income alerts', '收入提醒'),
+				emptyState: tr('Income thresholds for tax, social insurance and dependants change from year to year. Enter the amounts that apply to you this year. The plugin only reminds you; it does not work out tax.', '税、社保和扶养的收入门槛每年会变。请填今年适用于你的金额。本插件只做提醒，不计算税额。'),
+				addItem: { name: tr('Add income alert', '加收入提醒'), action: () => {
+					settings.incomeAlerts.push({ label: tr('Income alert', '收入提醒'), amount: 0, period: 'annual', enabled: true });
+					void this.saveAndUpdate();
+				} },
+				onDelete: index => { settings.incomeAlerts.splice(index, 1); void this.saveAndUpdate(); },
+				items: settings.incomeAlerts.map((alert, i) => ({
+					type: 'page' as const,
+					name: alert.label || tr(`Alert ${i + 1}`, `提醒 ${i + 1}`),
+					desc: `${alert.enabled ? '' : tr('Off · ', '已关 · ')}¥${alert.amount.toLocaleString()} ${alert.period === 'annual' ? tr('a year', '每年') : tr('a month', '每月')}`,
+					items: [
+						{ name: tr('On', '启用'), control: { type: 'toggle' as const, key: `incomeAlerts.${i}.enabled` } },
+						{ name: tr('Name', '名称'), control: { type: 'text' as const, key: `incomeAlerts.${i}.label` } },
+						{ name: tr('Amount (yen)', '金额（日元）'), control: { type: 'number' as const, key: `incomeAlerts.${i}.amount`, min: 0, step: 1 } },
+						{ name: tr('Period', '周期'), desc: tr('Annual counts the calendar year (January to December).', '每年按自然年（1 月到 12 月）计算。'), control: { type: 'dropdown' as const, key: `incomeAlerts.${i}.period`, options: { monthly: tr('Monthly', '每月'), annual: tr('Annual', '每年') } } }
+					]
+				}))
+			},
+			{
+				type: 'group',
+				heading: tr('Hour limits', '工时上限'),
+				items: [
+					{ name: tr('Long vacations (8 hours a day)', '长假（每天 8 小时）'), desc: tr('One period per line, such as 2026-08-01~2026-09-30. These days are checked against 8 hours each instead of the 28-hour week; a week that mixes term and vacation days counts all its hours toward 28. Use the dates in your school calendar; days you simply have no class do not count.', '每行一段，例如 2026-08-01~2026-09-30。这些日子按每天 8 小时检查，不按每周 28 小时；学期日和长假日混在一起的一周，全部工时都算进 28 小时。请按学校校历填写，只是没课的日子不算长假。'), control: { type: 'textarea', key: 'vacationPeriods', placeholder: '2026-08-01~2026-09-30' } }
+				]
+			},
+			{
+				type: 'group',
+				heading: tr('Overtime and leave', '加班与休假'),
+				items: [
+					{ name: tr('Overtime rate', '加班费率'), desc: tr('Multiplier for work over 8 hours a day or 40 hours a week. The legal minimum is 1.25.', '每天超过 8 小时或每周超过 40 小时部分的倍率。法定最低 1.25。'), control: { type: 'number', key: 'overtimeRate', min: 1, step: 0.01 } },
+					// The statutory rest day premium is set by law and separate from any store bonus on Sundays.
+					{ name: tr('Statutory rest day (法定休日)', '法定休日'), desc: tr('The weekly rest day your employer set in the work rules. Work on that day is paid at the rate below on top of the time bands. Leave it unset if your contract names none.', '雇主在就业规则里定的每周法定休日。在这一天上班，按下面的倍率另加休日劳动割增。合同里没写就保持“未设”。'), control: { type: 'dropdown', key: 'statutoryRestDay', options: weekdays } },
+					{ name: tr('Rest day work rate', '休日劳动倍率'), desc: tr('The legal minimum is 1.35.', '法定最低 1.35。'), control: { type: 'number', key: 'restDayWorkRate', min: 1, step: 0.01 } },
+					{ name: tr('Paid leave balance', '剩余带薪假'), desc: tr('Days of paid leave (有給休暇) you have left.', '还剩几天带薪假（有給休暇）。'), control: { type: 'number', key: 'paidLeaveBalance', min: 0, step: 0.5 } }
+				]
+			}
 		];
+	}
 
-		const btns: HTMLButtonElement[] = [];
-		const show = (index: number) => {
-			sections.forEach((section, i) => section.el.toggle(i === index));
-			btns.forEach((button, i) => button.toggleClass('is-active', i === index));
-		};
-		sections.forEach((sec, idx) => {
-			const btn = tabHeader.createEl('button', { text: sec.name });
-			btns.push(btn);
-			btn.onClickEvent(() => show(idx));
-		});
-		show(0);
+	getControlValue(key: string): unknown {
+		const value = readPath(this.plugin.settings, key);
+		if (LIST_KEYS.has(key) && Array.isArray(value)) return value.join('\n');
+		if (key.endsWith('.aliases') && Array.isArray(value)) return value.join(', ');
+		if (key === 'statutoryRestDay') return String(this.plugin.settings.statutoryRestDay);
+		if (key.endsWith('.effectiveFrom')) return value === '0000-01-01' ? '' : value;
+		return value;
+	}
 
-		// --- GENERAL TAB ---
-		new Setting(generalSec)
-			.setName(tr('Gemini API key', 'Gemini API 密钥'))
-			.setDesc(tr('Optional, for reading shifts from text or photos. Choose or create a secret in Obsidian\'s secret storage; other plugins can use the same one.', '可不填，用于从文字或照片读取班次。在 Obsidian 的密钥库里选择或新建，其他插件也能共用。'))
-			.addComponent(el => new SecretComponent(this.app, el)
-				.setValue(this.plugin.settings.geminiSecretName)
-				.onChange(async value => {
-					this.plugin.settings.geminiSecretName = value ?? '';
-					await this.plugin.saveSettings();
-				}));
+	async setControlValue(key: string, value: unknown): Promise<void> {
+		const settings = this.plugin.settings;
+		const field = key.split('.').pop() ?? key;
+		if (key === 'calendarName' && !this.plugin.ensureScheduleMutationAllowed()) return;
+		let next: unknown = value;
+		if (LIST_KEYS.has(key)) next = lines(value);
+		else if (field === 'aliases') next = asText(value).split(',').map(alias => alias.trim()).filter(Boolean);
+		else if (key === 'statutoryRestDay') next = Number(value);
+		else if (field === 'effectiveFrom') next = asText(value).trim() || '0000-01-01';
+		else if (field === 'period') next = value === 'annual' ? 'annual' : 'monthly';
+		else if (key === 'exportFolder') next = asText(value).trim() || DEFAULT_SETTINGS.exportFolder;
+		else if (key === 'payrollStartDay') next = Math.min(28, Math.max(1, Math.floor(Number(value)) || 21));
+		else if (key === 'overtimeRate' || key === 'restDayWorkRate') { const rate = Number(value); if (!(rate >= 1)) return; next = rate; }
+		else if (typeof value === 'number') next = Math.max(0, value);
+		else if (typeof value === 'string' && field !== 'label') next = value.trim();
+		writePath(settings, key, next);
+		// A renamed store keeps its old name as an alias, so shifts saved under it still match.
+		const storeMatch = /^storeConfigs\.(\d+)\.name$/.exec(key);
+		if (storeMatch) {
+			const store = settings.storeConfigs[Number(storeMatch[1])];
+			if (store) store.aliases = Array.from(new Set([store.name, ...store.aliases].filter(Boolean)));
+		}
+		if (key.startsWith('storeConfigs.')) settings.storeConfigs = normalizeStoreConfigs(settings.storeConfigs);
+		await this.plugin.saveSettings();
+		this.plugin.refreshDashboards();
+		// Names, dates and amounts show on list entries and in the band strip.
+		if (/name|label|amount|period|enabled|effectiveFrom|Wage$/.test(field)) this.update();
+	}
 
-		new Setting(generalSec)
-			.setName(tr('macOS Calendar name', 'macOS 日历名称'))
-			.setDesc(tr('Target calendar in macOS Calendar. Changing it syncs into the new calendar; existing events in the previous calendar are not removed automatically.', '写入 macOS 日历里的哪个日历。改了以后同步到新日历，旧日历里已有的事件不会自动删除。'))
-			.addText(text => text
-				.setPlaceholder('Work')
-				.setValue(this.plugin.settings.calendarName)
-				.onChange(async (value) => {
-					if (!this.plugin.ensureScheduleMutationAllowed()) return;
-					this.plugin.settings.calendarName = value.trim();
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(generalSec)
-			.setName(tr('Event title prefix', '事件标题前缀'))
-			.setDesc(tr('Calendar events are titled "<prefix>: <store>". Existing events are matched by a hidden marker, so changing this only renames them on the next sync.', '日历事件标题为“前缀: 店名”。已有事件靠隐藏标记识别，改前缀只会在下次同步时改名。'))
-			.addText(text => text
-				.setPlaceholder('打工')
-				.setValue(this.plugin.settings.eventTitlePrefix)
-				.onChange(async (value) => {
-					this.plugin.settings.eventTitlePrefix = value.trim();
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(generalSec)
-			.setName(tr('Export folder', '导出文件夹'))
-			.setDesc(tr('Where pay notes and .ics calendar files are saved.', '工资笔记和 .ics 日历文件的保存位置。'))
-			.addText(text => text
-				.setPlaceholder(DEFAULT_SETTINGS.exportFolder)
-				.setValue(this.plugin.settings.exportFolder)
-				.onChange(async (value) => {
-					this.plugin.settings.exportFolder = value.trim() || DEFAULT_SETTINGS.exportFolder;
-					await this.plugin.saveSettings();
-				}));
-
-		// --- WAGE RATES TAB ---
-		new Setting(wageSec).setName(tr('Default wage bands', '默认时薪段')).setHeading();
-		// One strip for the whole day, so a missing or odd band is easy to spot.
-		const band = wageSec.createDiv({ cls: 'jws-band' });
-		const drawBand = () => {
-			band.empty();
-			const settings = this.plugin.settings;
-			const strip = band.createDiv({ cls: 'jws-band-strip' });
-			[
-				{ name: tr('Morning', '早班'), wage: settings.morningWage, hours: 3, cls: 'is-morning' },
-				{ name: tr('Base', '基本'), wage: settings.baseWage, hours: 8, cls: 'is-base' },
-				{ name: tr('Evening', '晚班'), wage: settings.eveningWage, hours: 5, cls: 'is-evening' },
-				{ name: tr('Night', '深夜'), wage: settings.nightWage, hours: 3, cls: 'is-night' }
-			].forEach(part => {
-				const seg = strip.createDiv({ cls: `jws-band-seg ${part.cls}` });
-				seg.setCssProps({ '--jws-grow': String(part.hours) });
-				seg.createDiv({ cls: 'jws-band-wage', text: `¥${Number(part.wage).toLocaleString()}` });
-				seg.createDiv({ cls: 'jws-band-name', text: part.name });
-			});
-			const ticks = band.createDiv({ cls: 'jws-band-ticks' });
-			['open', '09:00', '17:00', '22:00', 'close'].forEach(tick => ticks.createSpan({ text: tick }));
-		};
-		drawBand();
-		wageSec.addEventListener('input', () => window.setTimeout(drawBand, 0));
-
-		new Setting(wageSec)
-			.setName(tr('Base wage (09:00–17:00)', '基本时薪（09:00–17:00）'))
-			.addText(text => text
-				.setValue(this.plugin.settings.baseWage.toString())
-				.onChange(async (value) => {
-					this.plugin.settings.baseWage = Number(value);
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(wageSec)
-			.setName(tr('Morning wage (opening–09:00)', '早班时薪（开店–09:00）'))
-			.addText(text => text
-				.setValue(this.plugin.settings.morningWage.toString())
-				.onChange(async (value) => {
-					this.plugin.settings.morningWage = Number(value);
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(wageSec)
-			.setName(tr('Evening wage (17:00–22:00)', '晚班时薪（17:00–22:00）'))
-			.addText(text => text
-				.setValue(this.plugin.settings.eveningWage.toString())
-				.onChange(async (value) => {
-					this.plugin.settings.eveningWage = Number(value);
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(wageSec)
-			.setName(tr('Night wage (22:00–closing)', '深夜时薪（22:00–闭店）'))
-			.addText(text => text
-				.setValue(this.plugin.settings.nightWage.toString())
-				.onChange(async (value) => {
-					this.plugin.settings.nightWage = Number(value);
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(wageSec)
-			.setName(tr('Sunday and holiday bonus per hour', '周日和节假日每小时加给'))
-			.addText(text => text
-				.setValue(this.plugin.settings.holidayBonus.toString())
-				.onChange(async (value) => {
-					this.plugin.settings.holidayBonus = Number(value);
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(wageSec)
-			.setName(tr('Daily commuting allowance', '每日交通费'))
-			.setDesc(tr('Added to your wage for each workday.', '每个上班日加到工资里。'))
-			.addText(text => text
-				.setPlaceholder('500')
-				.setValue(this.plugin.settings.commutingAllowance.toString())
-				.onChange(async (value) => {
-					this.plugin.settings.commutingAllowance = Number(value);
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(wageSec).setName(tr('Wage bands by store', '各店时薪段')).setHeading();
-		wageSec.createEl('p', {
-			text: tr('Each store can override the default wage bands above.', '每家店可以单独设时薪，覆盖上面的默认值。'),
-			cls: 'setting-item-description'
-		});
-
+	private async saveAndUpdate() {
 		this.plugin.settings.storeConfigs = normalizeStoreConfigs(this.plugin.settings.storeConfigs);
+		await this.plugin.saveSettings();
+		this.update();
+	}
 
-		const updateStoreConfig = async (index: number, patch: Partial<StoreConfig>) => {
-			const stores = normalizeStoreConfigs(this.plugin.settings.storeConfigs);
-			stores[index] = {
-				...stores[index],
-				...patch,
-				aliases: patch.aliases || stores[index].aliases
-			};
-			this.plugin.settings.storeConfigs = normalizeStoreConfigs(stores);
-			await this.plugin.saveSettings();
-		};
-
-		const updateWageBand = async (storeIndex: number, bandIndex: number, patch: Partial<EffectiveWageBandConfig>) => {
-			const stores = normalizeStoreConfigs(this.plugin.settings.storeConfigs);
-			const wageBands = [...(stores[storeIndex].wageBands || [])];
-			wageBands[bandIndex] = {
-				...wageBands[bandIndex],
-				...patch
-			};
-			await updateStoreConfig(storeIndex, { wageBands });
-		};
-
-		this.plugin.settings.storeConfigs.forEach((store, index) => {
-			const storeBox = wageSec.createDiv({ cls: 'jws-store-box' });
-			new Setting(storeBox).setName(store.name).setHeading();
-
-			new Setting(storeBox)
-				.setName(tr('Store name', '店名'))
-				.addText(text => text
-					.setValue(store.name)
-					.onChange(async (value) => {
-						await updateStoreConfig(index, {
-							name: value.trim() || store.name,
-							aliases: Array.from(new Set([value.trim(), ...store.aliases].filter(Boolean)))
-						});
-					}));
-
-			new Setting(storeBox)
-				.setName(tr('Aliases', '别名'))
-				.setDesc(tr('Other names or abbreviations for this store, comma separated. Used when reading schedules.', '这家店的其他叫法或简称，用逗号隔开。读排班时用。'))
-				.addTextArea(text => text
-					.setValue(store.aliases.join(', '))
-					.onChange(async (value) => {
-						await updateStoreConfig(index, {
-							aliases: value.split(',').map(alias => alias.trim()).filter(Boolean)
-						});
-					}));
-
-			new Setting(storeBox)
-				.setName(tr('Short label', '简称'))
-				.setDesc(tr('Shown on small calendar chips.', '显示在日历的小胶囊上。'))
-				.addText(text => text
-					.setValue(store.shortName || store.name)
-					.onChange(async (value) => {
-						await updateStoreConfig(index, { shortName: value.trim() || store.name });
-					}));
-
-			(store.wageBands || []).forEach((band, bandIndex) => {
-				const bandBox = storeBox.createDiv({ cls: 'jws-band-box' });
-				new Setting(bandBox).setName(band.effectiveFrom === '0000-01-01' ? tr('Wage band from the start', '最初的时薪段') : tr(`Wage band from ${band.effectiveFrom}`, `${band.effectiveFrom} 起的时薪段`)).setHeading();
-
-				new Setting(bandBox)
-					.setName(tr('Effective from', '生效日期'))
-					.addText(text => {
-						text.inputEl.type = 'date';
-						text.setValue(band.effectiveFrom === '0000-01-01' ? '' : band.effectiveFrom)
-							.onChange(async (value) => {
-								await updateWageBand(index, bandIndex, { effectiveFrom: value || '0000-01-01' });
-								this.display();
-							});
-					});
-
-				[
-					{ key: 'baseWage', label: tr('Base wage (09:00–17:00)', '基本时薪（09:00–17:00）') },
-					{ key: 'morningWage', label: tr('Morning wage (opening–09:00)', '早班时薪（开店–09:00）') },
-					{ key: 'eveningWage', label: tr('Evening wage (17:00–22:00)', '晚班时薪（17:00–22:00）') },
-					{ key: 'nightWage', label: tr('Night wage (22:00–closing)', '深夜时薪（22:00–闭店）') },
-					{ key: 'holidayBonus', label: tr('Sunday and holiday bonus per hour', '周日和节假日每小时加给') },
-					{ key: 'commutingAllowance', label: tr('Daily commuting allowance', '每日交通费') }
-				].forEach(({ key, label }) => {
-					new Setting(bandBox)
-						.setName(label)
-						.addText(text => text
-							.setValue(String(band[key as keyof WageBandConfig] ?? 0))
-							.onChange(async (value) => {
-								await updateWageBand(index, bandIndex, { [key]: Number(value) });
-							}));
-				});
-
-				if ((store.wageBands || []).length > 1) {
-					new Setting(bandBox)
-						.setName(tr('Remove this wage band', '删除这个时薪段'))
-						.addButton(button => button
-							.setButtonText(tr('Remove', '删除'))
-							.onClick(async () => {
-								const stores = normalizeStoreConfigs(this.plugin.settings.storeConfigs);
-								const wageBands = [...(stores[index].wageBands || [])];
-								wageBands.splice(bandIndex, 1);
-								await updateStoreConfig(index, { wageBands });
-								this.display();
-							}));
-				}
-			});
-
-			new Setting(storeBox)
-				.setName(tr('Add wage band', '加时薪段'))
-				.setDesc(tr('When your hourly wage changes from a certain date. Earlier shifts keep the old rates.', '时薪从某天起变化时用。之前的班次仍按旧时薪。'))
-				.addButton(button => button
-					.setButtonText(tr('Add', '添加'))
-					.onClick(async () => {
-						const stores = normalizeStoreConfigs(this.plugin.settings.storeConfigs);
-						const wageBands = [...(stores[index].wageBands || [])];
-						const latestBand = wageBands[wageBands.length - 1];
-						wageBands.push({
-							...latestBand,
-							effectiveFrom: new Date().toISOString().slice(0, 10)
-						});
-						await updateStoreConfig(index, { wageBands });
-						this.display();
-					}));
+	/** One strip for the whole day, so a missing or odd band is easy to spot. */
+	private drawBandStrip(setting: Setting) {
+		const settings = this.plugin.settings;
+		setting.settingEl.addClass('jws-band-row');
+		setting.infoEl.remove();
+		const band = setting.controlEl.createDiv({ cls: 'jws-band' });
+		const strip = band.createDiv({ cls: 'jws-band-strip' });
+		[
+			{ name: tr('Morning', '早班'), wage: settings.morningWage, hours: 4, cls: 'is-morning' },
+			{ name: tr('Base', '基本'), wage: settings.baseWage, hours: 8, cls: 'is-base' },
+			{ name: tr('Evening', '晚班'), wage: settings.eveningWage, hours: 5, cls: 'is-evening' },
+			{ name: tr('Night', '深夜'), wage: settings.nightWage, hours: 7, cls: 'is-night' }
+		].forEach(part => {
+			const seg = strip.createDiv({ cls: `jws-band-seg ${part.cls}` });
+			seg.setCssProps({ '--jws-grow': String(part.hours) });
+			seg.createDiv({ cls: 'jws-band-wage', text: `¥${Number(part.wage).toLocaleString()}` });
+			seg.createDiv({ cls: 'jws-band-name', text: part.name });
 		});
-
-		// --- COMPLIANCE TAB ---
-		new Setting(legalSec).setName(tr('Payroll and holidays', '工资月与节假日')).setHeading();
-
-		new Setting(legalSec)
-			.setName(tr('Payroll month starts on day', '工资月从几号开始'))
-			.setDesc(tr('For example 21 for a 21st-to-20th cycle. Use 1 for calendar months.', '例如 21 表示 21 日到次月 20 日。按自然月填 1。'))
-			.addText(text => text
-				.setPlaceholder('21')
-				.setValue((this.plugin.settings.payrollStartDay || 21).toString())
-				.onChange(async (value) => {
-					this.plugin.settings.payrollStartDay = Number(value);
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(legalSec)
-			.setName(tr('Extra holidays', '额外假日'))
-			.setDesc(tr('One date (YYYY-MM-DD) per line, paid like a public holiday.', '每行一个日期（YYYY-MM-DD），按法定假日计薪。'))
-			.addTextArea(text => text
-				.setPlaceholder('2026-05-01\n2026-12-31')
-				.setValue((this.plugin.settings.customHolidays || []).join('\n'))
-				.onChange(async (value) => {
-					this.plugin.settings.customHolidays = value.split('\n').map(d => d.trim()).filter(d => d.length > 0);
-					await this.plugin.saveSettings();
-				}));
-
-		const holidayUpdatedText = this.plugin.settings.holidayCacheUpdatedAt
-			? new Date(this.plugin.settings.holidayCacheUpdatedAt).toLocaleString()
-			: 'never';
-
-		new Setting(legalSec)
-			.setName(tr('Japanese public holidays', '日本法定假日'))
-			.setDesc(tr(`Downloaded from holidays-jp.github.io and cached for a week. Last updated: ${holidayUpdatedText}`, `从 holidays-jp.github.io 下载，缓存一周。上次更新：${holidayUpdatedText}`))
-			.addButton(button => button
-				.setButtonText(tr('Refresh now', '立即刷新'))
-				.onClick(async () => {
-					await this.plugin.refreshHolidayCache(true);
-					this.display();
-				}));
-
-		new Setting(legalSec).setName(tr('Income alerts', '收入提醒')).setHeading();
-		legalSec.createEl('p', {
-			text: tr('Income thresholds for tax, social insurance and dependants change from year to year. Enter the amounts that apply to you this year. The plugin only reminds you; it does not work out tax.', '税、社保和扶养的收入门槛每年会变。请填今年适用于你的金额。本插件只做提醒，不计算税额。'),
-			cls: 'setting-item-description'
-		});
-		this.plugin.settings.incomeAlerts.forEach((alert, index) => {
-			new Setting(legalSec)
-				.setName(alert.label || `Alert ${index + 1}`)
-				.setDesc(alert.period === 'annual' ? tr('Income for the calendar year (January to December).', '自然年（1 月到 12 月）的收入。') : tr('Income for the current month.', '当月的收入。'))
-				.addText(text => text
-					.setPlaceholder(tr('Name', '名称'))
-					.setValue(alert.label)
-					.onChange(async (value) => {
-						alert.label = value.trim();
-						await this.plugin.saveSettings();
-					}))
-				.addText(text => {
-					text.inputEl.type = 'number';
-					text.setPlaceholder(tr('Amount (yen)', '金额（日元）'))
-						.setValue(String(alert.amount || ''))
-						.onChange(async (value) => {
-							alert.amount = Math.max(0, Number(value) || 0);
-							await this.plugin.saveSettings();
-						});
-				})
-				.addDropdown(dropdown => dropdown
-					.addOption('monthly', tr('Monthly', '每月'))
-					.addOption('annual', tr('Annual', '每年'))
-					.setValue(alert.period)
-					.onChange(async (value) => {
-						alert.period = value === 'annual' ? 'annual' : 'monthly';
-						await this.plugin.saveSettings();
-						this.display();
-					}))
-				.addToggle(toggle => toggle
-					.setValue(alert.enabled)
-					.onChange(async (value) => {
-						alert.enabled = value;
-						await this.plugin.saveSettings();
-					}));
-		});
-
-		new Setting(legalSec)
-			.setName(tr('Long vacations (8 hours a day)', '长假（每天 8 小时）'))
-			.setDesc(tr('One period per line, such as 2026-08-01~2026-09-30. These days are checked against 8 hours each instead of the 28-hour week; a week that mixes term and vacation days counts all its hours toward 28. Use the dates in your school calendar; days you simply have no class do not count.', '每行一段，例如 2026-08-01~2026-09-30。这些日子按每天 8 小时检查，不按每周 28 小时；学期日和长假日混在一起的一周，全部工时都算进 28 小时。请按学校校历填写，只是没课的日子不算长假。'))
-			.addTextArea(text => text
-				.setPlaceholder('2026-08-01~2026-09-30')
-				.setValue((this.plugin.settings.vacationPeriods || []).join('\n'))
-				.onChange(async (value) => {
-					this.plugin.settings.vacationPeriods = value.split('\n').map(line => line.trim()).filter(Boolean);
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(legalSec).setName(tr('Overtime and leave', '加班与休假')).setHeading();
-
-		new Setting(legalSec)
-			.setName(tr('Overtime rate', '加班费率'))
-			.setDesc(tr('Multiplier for work over 8 hours a day or 40 hours a week. The legal minimum is 1.25.', '每天超过 8 小时或每周超过 40 小时部分的倍率。法定最低 1.25。'))
-			.addText(text => text
-				.setValue(this.plugin.settings.overtimeRate.toString())
-				.onChange(async (value) => {
-					this.plugin.settings.overtimeRate = Number(value);
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(legalSec)
-			.setName(tr('Paid leave balance', '剩余带薪假'))
-			.setDesc(tr('Days of paid leave (有給休暇) you have left.', '还剩几天带薪假（有給休暇）。'))
-			.addText(text => text
-				.setValue(this.plugin.settings.paidLeaveBalance.toString())
-				.onChange(async (value) => {
-					this.plugin.settings.paidLeaveBalance = Number(value);
-					await this.plugin.saveSettings();
-				}));
+		const ticks = band.createDiv({ cls: 'jws-band-ticks' });
+		['05:00', '09:00', '17:00', '22:00', '05:00'].forEach(tick => ticks.createSpan({ text: tick }));
 	}
 }

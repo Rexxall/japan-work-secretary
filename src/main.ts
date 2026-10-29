@@ -128,7 +128,9 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
 		const loadedData = (await this.loadData()) as Partial<JapanWorkSecretaryPluginData> | null;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData?.settings);
         this.settings.storeConfigs = normalizeStoreConfigs(this.settings.storeConfigs);
-        this.settings.incomeAlerts = migrateIncomeAlerts(this.settings);
+        // Read the saved settings, not the merged ones: the defaults already carry a list of alerts,
+        // which would hide the on/off switches saved by 1.1.x.
+        this.settings.incomeAlerts = migrateIncomeAlerts(loadedData?.settings ?? {});
         delete this.settings.taxWall88k;
         delete this.settings.taxWall103k;
         delete this.settings.taxWall130k;
@@ -145,6 +147,16 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
         this.shiftData.calendarSyncState = this.shiftData.calendarSyncState || {};
         this.shiftData.lastSyncTime = this.shiftData.lastSyncTime || null;
         this.shiftData.lastSyncAttemptTime = this.shiftData.lastSyncAttemptTime || null;
+        if (!Number.isInteger(this.settings.statutoryRestDay) || this.settings.statutoryRestDay < -1 || this.settings.statutoryRestDay > 6) this.settings.statutoryRestDay = -1;
+        if (!(Number(this.settings.restDayWorkRate) >= 1)) this.settings.restDayWorkRate = DEFAULT_SETTINGS.restDayWorkRate;
+        // Stored hours and pay follow the current rules (unentered breaks, late-night hours, holiday by calendar day),
+        // including shifts saved by older versions.
+        const calculator = new WageCalculator(this.settings);
+        for (const shift of this.shiftData.shifts) {
+            const result = calculator.calculateShiftWage(shift.date, shift.startTime, shift.endTime, shift.isPaidLeave || false, shift.breakMinutes, shift.storeName);
+            shift.calculatedHours = result.totalHours;
+            shift.calculatedWage = result.wageAmount;
+        }
 	}
 
     /** Re-render open dashboards after a setting changes. */

@@ -1517,8 +1517,8 @@ class ShiftShareModal extends Modal {
         const actions = contentEl.createDiv({ cls: 'ap-modal-foot' });
         actions.createDiv({ cls: 'ap-foot-note', text: tr('Text for a chat message, an image, a pay note, or a calendar file.', '可以导出聊天用的文字、图片、工资笔记或日历文件。') });
         const closeBtn = actions.createEl('button', { text: tr('Close', '关闭') });
-        const noteBtn = actions.createEl('button', { text: tr('Save pay note', '存工资笔记'), attr: { 'aria-label': 'Save a note with every shift and the pay for this range, to compare with your payslip' } });
-        const icsBtn = actions.createEl('button', { text: tr('Export .ics', '导出 .ics'), attr: { 'aria-label': 'Save a calendar file for Google Calendar, Outlook or your phone' } });
+        const noteBtn = actions.createEl('button', { text: tr('Save pay note', '存工资笔记'), attr: { 'aria-label': tr('Save a note with every shift and the pay for this range, to compare with your payslip', '把这段时间的每个班次和工资存成笔记，方便对照工资条') } });
+        const icsBtn = actions.createEl('button', { text: tr('Export .ics', '导出 .ics'), attr: { 'aria-label': tr('Save a calendar file for Google Calendar, Outlook or your phone', '存成日历文件，导入 Google 日历、Outlook 或手机') } });
         const imageBtn = actions.createEl('button', { text: tr('Download PNG', '下载 PNG') });
         const copyBtn = actions.createEl('button', { text: tr('Copy text', '复制文字'), cls: 'mod-cta' });
 

@@ -2,7 +2,7 @@
 	"id": "japan-work-secretary",
 	"name": "Japan Work Secretary",
 	"version": "1.4.0",
-	"minAppVersion": "1.11.4",
+	"minAppVersion": "1.13.0",
 	"description": "Track part-time shifts in Japan, with wages by time band, the 28-hour weekly limit for student visas, and calendar sync.",
 	"author": "Rexxall",
 	"authorUrl": "https://github.com/Rexxall",

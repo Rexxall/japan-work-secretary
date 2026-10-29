@@ -72,7 +72,7 @@ Double-click a day. Before you save, the dialog shows the pay, whether a break h
 3. In Obsidian: **Settings → Community plugins → reload**, then enable **Japan Work Secretary**.
 4. Open the dashboard from the command palette: **Japan Work Secretary: Open dashboard**.
 
-Desktop only, Obsidian 1.11.4 or later. Calendar sync needs macOS; the .ics export works everywhere.
+Desktop only, Obsidian 1.13 or later. Calendar sync needs macOS; the .ics export works everywhere.
 
 ### First-time setup
 
@@ -127,7 +127,11 @@ npm test          # 27 tests: 28-hour windows, vacations, wages, calendar sync p
 - Shifts read by the AI open in a check list before anything is saved: edit or untick rows, see duplicates and rows that would break the 28-hour or 8-hour rule.
 - *Save pay note*: a Markdown note with every shift, totals by store and overtime, to check against your payslip.
 - *Export .ics* for Google Calendar, Outlook and phones.
-- The Gemini key moves to Obsidian's secret storage and can be shared with other plugins. Requires Obsidian 1.11.4.
+- The Gemini key moves to Obsidian's secret storage and can be shared with other plugins.
+- Requires Obsidian 1.13: settings use Obsidian's own pages and lists (stores, wage bands and income alerts can be added and removed there) and show up in settings search.
+- Late-night hours are named as what they are, 22:00–05:00, and the store's Sunday and holiday bonus goes by the calendar day of each hour, so a Saturday night shift gets it only after midnight.
+- The statutory rest day (法定休日) premium is a separate setting, off until you name the day; the legal minimum rate is 1.35.
+- Income alerts switched on in 1.1.x stay on after the upgrade (they were reset before). Stored hours and pay are recalculated with the current rules on start.
 - Gemini is called through Obsidian's `requestUrl` instead of Google's SDK; the plugin file is about 170 KB instead of 960 KB. Images are read from the vault instead of the file system.
 - The AI prompt no longer assumes a particular store or the year 2026.
 - Deleting a recurring shift or a template takes a second click instead of a browser dialog. Settings and commands use sentence case and Obsidian's own section headings.
@@ -169,7 +173,8 @@ MIT
 - **日历：** 同步到 macOS 日历，只写有变化的班次，用隐藏标记原地更新、不重复；也可导出 .ics 给 Google 日历、Outlook、手机。
 - **中文界面（1.4.0）：** Obsidian 设为中文时整个界面显示中文，否则显示英文；按自然月或工资月统计、三种日历同步都放在面板右上角的 ⋯ 菜单里。
 - **工资笔记（1.4.0）：** 按所选区间生成 Markdown 笔记，列出每个班次、按店合计和含加班的总额，方便对照工资条。
-- **密钥（1.4.0）：** 存在 Obsidian 的密钥库里，可与其他插件共用；旧版存的密钥首次启动自动迁移。需 Obsidian 1.11.4 以上。
+- **密钥（1.4.0）：** 存在 Obsidian 的密钥库里，可与其他插件共用；旧版存的密钥首次启动自动迁移。需 Obsidian 1.13 以上。
+- **工资规则（1.4.0）：** 深夜时段明确为 22:00–05:00；店铺周日和节假日津贴按每小时所在的日期计算，周六夜班过了零点才算周日；法定休日割增单独设置，默认关闭，法定最低 1.35 倍。
 - **隐私：** 数据都在你的库里；只有在你执行识别命令时，选中的文字或图片才会发给 Gemini。
 
 ## 日本語

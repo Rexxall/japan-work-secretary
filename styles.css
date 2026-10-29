@@ -817,8 +817,8 @@
 .jws-policy-modal .policy-footer { font-size: var(--font-ui-smaller); color: var(--text-faint); }
 
 /* Settings */
-.jws-settings .jws-settings-tabs { margin-bottom: 16px; }
-.jws-settings .jws-band { margin: 4px 0 16px; }
+.jws-settings .jws-band-row .setting-item-control { flex: 1; width: 100%; }
+.jws-settings .jws-band { width: 100%; margin: 4px 0; text-align: left; }
 
 .jws-settings .jws-band-strip {
 	display: flex;
@@ -851,16 +851,6 @@
 	color: var(--text-faint);
 }
 
-.jws-settings .jws-store-box {
-	margin: 12px 0;
-	padding: 4px 14px 10px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
-}
-
-.jws-settings .jws-store-box h4 { margin: 10px 0 4px; }
-.jws-settings .jws-band-box { margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--background-modifier-border); }
-.jws-settings .jws-band-box h5 { margin: 6px 0; }
 
 /* Second click deletes */
 .japan-work-dashboard .jws-danger-icon.is-armed { color: var(--text-error); }

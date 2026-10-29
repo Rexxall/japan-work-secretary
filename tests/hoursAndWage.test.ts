@@ -103,3 +103,30 @@ test('a week that mixes term days and vacation days is held to 28 hours with all
     const term = new HoursTracker([]).checkPeak7DayWindow(shifts.slice(0, 4), '2026-07-29');
     assert.equal(term.mixesVacation, false);
 });
+
+test('late-night hours run 22:00–05:00, past midnight included', () => {
+    const calc = new WageCalculator(settings);
+    // Tuesday 22:00 to Wednesday 05:00: seven hours, all at the late-night rate (no holiday involved).
+    const result = calc.calculateShiftWage('2026-10-20', '22:00', '05:00', false, 60, '测试店');
+    assert.equal(result.totalHours, 6);
+    // 6 h at 1500 plus the overtime premium for nothing (under 8 h).
+    assert.equal(result.wageAmount, 9000);
+});
+
+test('the store bonus follows the calendar day of each hour: Saturday night into Sunday gets it only after midnight', () => {
+    const bonusSettings = { ...settings, storeConfigs: [{ ...settings.storeConfigs[0], wageBands: [{ ...settings.storeConfigs[0].wageBands[0], holidayBonus: 100 }] }] };
+    const calc = new WageCalculator(bonusSettings);
+    // 2026-10-17 is a Saturday. 22:00–02:00: two hours on Saturday, two on Sunday.
+    const result = calc.calculateShiftWage('2026-10-17', '22:00', '02:00', false, 0, '测试店');
+    assert.equal(result.wageAmount, 4 * 1500 + 2 * 100);
+});
+
+test('the statutory rest day premium is separate from the store bonus and off unless a day is set', () => {
+    const calc = new WageCalculator(settings);
+    // 2026-10-18 is a Sunday; the store bonus is 0 in this table, so only the premium can change the pay.
+    assert.equal(calc.calculateShiftWage('2026-10-18', '10:00', '14:00', false, 0, '测试店').wageAmount, 4 * 1200);
+    const withRestDay = new WageCalculator({ ...settings, statutoryRestDay: 0, restDayWorkRate: 1.35 });
+    assert.equal(withRestDay.calculateShiftWage('2026-10-18', '10:00', '14:00', false, 0, '测试店').wageAmount, Math.floor(4 * 1200 * 1.35));
+    // Another weekday is not affected.
+    assert.equal(withRestDay.calculateShiftWage('2026-10-19', '10:00', '14:00', false, 0, '测试店').wageAmount, 4 * 1200);
+});

@@ -48,8 +48,8 @@ export class WageCalculator {
             };
         }
 
-        let startMoment = this.parseTime(date, startTime);
-        let endMoment = this.parseTime(date, endTime);
+        const startMoment = this.parseTime(date, startTime);
+        const endMoment = this.parseTime(date, endTime);
 
         if (endMoment.isBefore(startMoment)) {
             endMoment.add(1, 'day');
@@ -72,44 +72,47 @@ export class WageCalculator {
         const breakStartMinute = Math.floor(totalMinutes / 2) - Math.floor(breakMinutes / 2);
         const breakEndMinute = breakStartMinute + breakMinutes;
 
-        // 2. Count minutes for each slot
-        let morningMins = 0;
-        let baseMins = 0;
-        let eveningMins = 0;
-        let nightMins = 0;
+        // 2. Pay minute by minute. Time bands: morning 05:00–09:00, day 09:00–17:00, evening 17:00–22:00,
+        // late night 22:00–05:00 (the legal late-night hours). The store's Sunday and holiday bonus and the
+        // statutory rest-day premium both go by the calendar day each minute falls on, so a shift that runs
+        // past midnight into a holiday gets them only for the hours after midnight.
+        const rates = {
+            morning: Number(wageBand.morningWage),
+            base: Number(wageBand.baseWage),
+            evening: Number(wageBand.eveningWage),
+            night: Number(wageBand.nightWage)
+        };
+        const storeBonus = Number(wageBand.holidayBonus) || 0;
+        const restDay = Number(this.settings.statutoryRestDay ?? -1);
+        const restDayPremium = rates.base * Math.max(0, (Number(this.settings.restDayWorkRate) || 1) - 1);
+        const dayCache = new Map<string, { bonus: number, premium: number }>();
+        const dayExtras = (m: Moment) => {
+            const key = m.format('YYYY-MM-DD');
+            let extras = dayCache.get(key);
+            if (!extras) {
+                extras = {
+                    bonus: HolidayUtility.isSundayOrHoliday(m, this.settings.customHolidays || []) ? storeBonus : 0,
+                    premium: restDay >= 0 && m.day() === restDay ? restDayPremium : 0
+                };
+                dayCache.set(key, extras);
+            }
+            return extras;
+        };
 
-        let currentMoment = startMoment.clone();
-        const isHoliday = HolidayUtility.isSundayOrHoliday(startMoment, this.settings.customHolidays || []);
-        const bonus = isHoliday ? (Number(wageBand.holidayBonus) || 0) : 0;
-
+        let totalWage = 0;
+        const currentMoment = startMoment.clone();
         for (let i = 0; i < totalMinutes; i++) {
-            if (i >= breakStartMinute && i < breakEndMinute) {
-                currentMoment.add(1, 'minute');
-                continue;
+            if (i < breakStartMinute || i >= breakEndMinute) {
+                const hour = currentMoment.hour();
+                const rate = hour >= 5 && hour < 9 ? rates.morning
+                    : hour >= 9 && hour < 17 ? rates.base
+                        : hour >= 17 && hour < 22 ? rates.evening
+                            : rates.night;
+                const { bonus, premium } = dayExtras(currentMoment);
+                totalWage += (rate + bonus + premium) / 60;
             }
-
-            const hour = currentMoment.hour();
-
-            if (hour >= 5 && hour < 9) {
-                morningMins++;
-            } else if (hour >= 9 && hour < 17) {
-                baseMins++;
-            } else if (hour >= 17 && hour < 22) {
-                eveningMins++;
-            } else {
-                nightMins++;
-            }
-
             currentMoment.add(1, 'minute');
         }
-
-        // 3. Batch Multiplication
-        const morningWage = Number(wageBand.morningWage) + bonus;
-        const baseWage = Number(wageBand.baseWage) + bonus;
-        const eveningWage = Number(wageBand.eveningWage) + bonus;
-        const nightWage = Number(wageBand.nightWage) + bonus;
-
-        let totalWage = (morningMins * morningWage + baseMins * baseWage + eveningMins * eveningWage + nightMins * nightWage) / 60;
 
         // 4. Overtime Logic (Single shift fallback)
         if (actualWorkingHours > 8) {
