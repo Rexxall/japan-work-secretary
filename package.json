@@ -1,24 +1,29 @@
 {
 	"name": "japan-work-secretary",
-	"version": "1.5.0",
+	"version": "1.6.0",
 	"description": "Track part-time shifts in Japan: wages by time band, the 28-hour weekly limit for student visas, and sync to Apple Calendar.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "node styles/build.mjs && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"styles": "node styles/build.mjs",
-		"test": "node tests/run-tests.mjs"
+		"test": "node tests/run-tests.mjs",
+		"lint": "eslint --max-warnings 0 . && eslint --max-warnings 0 -c eslint.scorecard.config.mjs . && stylelint --max-warnings 0 \"styles/*.css\" styles.css"
 	},
 	"keywords": [],
 	"author": "Rexxall",
 	"license": "MIT",
 	"devDependencies": {
+		"@eslint/js": "9.39.5",
 		"@types/node": "^16.18.126",
-		"@typescript-eslint/eslint-plugin": "^5.29.0",
-		"@typescript-eslint/parser": "^5.29.0",
 		"esbuild": "0.17.3",
+		"eslint": "9.39.5",
+		"eslint-plugin-obsidianmd": "0.4.2",
+		"globals": "17.13.0",
 		"obsidian": "^1.14.4",
+		"stylelint": "17.16.0",
 		"tslib": "2.4.0",
-		"typescript": "4.9.5"
+		"typescript": "5.9.3",
+		"typescript-eslint": "8.72.1"
 	}
 }

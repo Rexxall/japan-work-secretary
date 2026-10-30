@@ -1,7 +1,7 @@
 {
 	"id": "japan-work-secretary",
 	"name": "Japan Work Secretary",
-	"version": "1.5.0",
+	"version": "1.6.0",
 	"minAppVersion": "1.13.0",
 	"description": "Track part-time shifts in Japan: pay by time band and store, a warning before any 7 days go over the 28-hour student limit, calendar sync, and rosters read from text or photos.",
 	"author": "Rexxall",

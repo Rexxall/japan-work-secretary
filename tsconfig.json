@@ -11,7 +11,11 @@
 		"importHelpers": true,
 		"strictNullChecks": true,
 		"resolveJsonModule": true,
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"lib": [
+			"DOM",
+			"ES2021"
+		]
 	},
 	"include": [
 		"src/**/*.ts"

@@ -1,4 +1,5 @@
-import { Plugin, Notice, Editor, TFile, arrayBufferToBase64, normalizePath, requestUrl, moment } from 'obsidian';
+import { Plugin, Notice, Editor, TFile, arrayBufferToBase64, normalizePath, requestUrl } from 'obsidian';
+import { moment } from './time';
 import { tr } from './i18n';
 import { JapanWorkSecretarySettingTab, DEFAULT_SETTINGS, JapanWorkSecretarySettings, migrateIncomeAlerts } from './settings';
 import { JapanWorkSecretaryData, DEFAULT_DATA, RecurringShift, Shift, normalizeStoreConfigs, parseRecurringInstanceId } from './data';

@@ -1,4 +1,4 @@
-import { execFile } from 'child_process';
+import { execFile } from './shell';
 
 const SERVICE_NAME = 'obsidian-japan-work-secretary';
 const GEMINI_ACCOUNT = 'gemini-api-key';

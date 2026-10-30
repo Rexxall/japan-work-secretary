@@ -1,5 +1,4 @@
-import { moment } from 'obsidian';
-type Moment = ReturnType<typeof moment>;
+import { moment, Moment } from './time';
 
 export class HolidayUtility {
     public static readonly HOLIDAY_API_URL = 'https://holidays-jp.github.io/api/v1/date.json';

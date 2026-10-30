@@ -1,4 +1,5 @@
-import { ItemView, WorkspaceLeaf, Notice, Menu, requestUrl, Modal, App, setIcon, moment } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice, Menu, requestUrl, Modal, App, setIcon } from 'obsidian';
+import { moment, Moment } from './time';
 import { tr } from './i18n';
 import JapanWorkSecretaryPlugin, { errorMessage } from './main';
 import { HoursTracker, parseVacationPeriods } from './hoursTracker';
@@ -8,7 +9,6 @@ import { ExchangeRateSnapshot, Shift, ShiftTemplatePattern, buildRecurringInstan
 import { PolicyExplanationModal } from './policyModal';
 import { appendMixedWeekNote, breakMissingText } from './ruleNotes';
 
-type Moment = ReturnType<typeof moment>;
 
 export const DASHBOARD_VIEW_TYPE = 'japan-work-dashboard-view';
 

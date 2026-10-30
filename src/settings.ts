@@ -1,4 +1,5 @@
-import { App, Notice, PluginSettingTab, Setting, SettingDefinitionItem, SettingGroupItem, moment } from 'obsidian';
+import { App, Notice, PluginSettingTab, Setting, SettingDefinitionItem, SettingGroupItem } from 'obsidian';
+import { moment } from './time';
 import { AiError, DEFAULT_PROVIDER, ProviderId, TEST_COST_NOTE, describeFailure, listModels, presetFor, presets, testConnection } from './ai/providers';
 import { tr } from './i18n';
 import JapanWorkSecretaryPlugin from './main';
@@ -103,6 +104,13 @@ const bandLabels = () => [
 ];
 
 const KIT_CLS = 'ap ap-settings';
+/** Marks each group's last row so the kit rounds its lower corners where Obsidian lays rows out flat under their headings. */
+function markGroupEnds(el: HTMLElement): void {
+	el.querySelectorAll('.setting-item:not(.setting-item-heading)').forEach(row => {
+		const next = row.nextElementSibling;
+		row.toggleClass('ap-group-end', !!next && (next.matches('.setting-item-heading') || !next.matches('.setting-item')));
+	});
+}
 /** Sub-pages render outside the tab's container, so their groups carry the kit classes themselves. */
 function kitPage<K extends string>(items: SettingDefinitionItem<K>[]): SettingDefinitionItem<K>[] {
 	const out: SettingDefinitionItem<K>[] = [];
@@ -130,6 +138,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		super(app, plugin);
 		this.plugin = plugin;
 		this.containerEl.addClass('jws-settings', 'ap', 'ap-settings');
+		new MutationObserver(() => markGroupEnds(this.containerEl)).observe(this.containerEl, { childList: true, subtree: true });
 	}
 
 	getSettingDefinitions(): SettingDefinitionItem[] {

@@ -1,6 +1,6 @@
-import { execFile } from 'child_process';
+import { execFile } from './shell';
 import { Shift } from './data';
-import { moment } from 'obsidian';
+import { moment } from './time';
 
 export type CalendarSyncAction = 'created' | 'updated';
 export type CalendarDeleteAction = 'deleted' | 'not-found';

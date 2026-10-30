@@ -279,7 +279,7 @@
 
 /* The disclosure chevron sits on the right so the title lines up with the rest of the card */
 .japan-work-dashboard .jws-details summary::-webkit-details-marker { display: none; }
-.japan-work-dashboard .jws-details summary::after { content: "›"; color: var(--ap-label-3); font-size: 18px; line-height: 1; transition: transform 0.2s; }
+.japan-work-dashboard .jws-details summary::after { content: "›"; color: var(--ap-label-3); font-size: 18px; line-height: 1; transition: transform var(--ap-base) var(--ap-ease); }
 .japan-work-dashboard .jws-details[open] summary::after { transform: rotate(90deg); }
 
 .japan-work-dashboard .jws-details[open] summary { margin-bottom: 12px; }
@@ -336,7 +336,7 @@
 
 /* Modals */
 .jws-modal { width: min(520px, 92vw); }
-.jws-modal:has(.jws-policy-modal) { width: min(680px, 92vw); }
+.jws-modal.jws-policy-dialog { width: min(680px, 92vw); }
 .jws-modal .jws-preview { display: flex; justify-content: space-between; align-items: flex-end; margin: 14px 0 10px; }
 .jws-modal .jws-preview-right { text-align: right; }
 .jws-modal .jws-preview-value { font-family: var(--ap-font-round); font-size: 1.25em; font-weight: 600; }

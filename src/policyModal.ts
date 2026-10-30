@@ -34,7 +34,7 @@ export class PolicyExplanationModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
         contentEl.addClass('jws-policy-modal');
-        this.modalEl.addClass('jws-modal');
+        this.modalEl.addClass('jws-modal', 'jws-policy-dialog');
         this.titleEl.setText(tr('Work hours and income: reference', '工时与收入：参考'));
         const container = contentEl.createDiv({ cls: 'policy-modal-content' });
 

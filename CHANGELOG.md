@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.0
+
+- **Passes the community directory's review with no findings.** Every call into moment and Node is typed through two small modules (`src/time.ts`, `src/shell.ts`) that fail the build if the real APIs stop matching, and the TypeScript library is set to ES2021 instead of borrowing it from Node's typings. The scanner, which does not install dev dependencies, read 874 of those calls as untyped.
+- Styles use no `!important`, `all` or `:has()`: buttons and the search field reset Obsidian's look property by property, reduced motion zeroes the kit's timing variables, the last row of a settings group is marked by the plugin, and the reference dialog gets its width from its own class. Nothing looks different.
+- `npm run lint` now runs the directory's rules twice, once with full types and once without the dev typings, plus stylelint for those three CSS rules; any warning fails it.
+- README: why the plugin runs `osascript` and `security`, and what it copies to the clipboard.
+
 ## 1.5.0
 
 - **AI for reading schedules.** Choose the service, address, model and key separately, with presets for DeepSeek (default), Qwen, SiliconFlow, Kimi, Zhipu GLM, Gemini, OpenAI and any OpenAI-compatible or local server. A Gemini key from 1.4.x carries over.

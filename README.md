@@ -44,6 +44,8 @@
 - **The API key** lives in Obsidian's secret storage on this device. The plugin's settings keep only its name, so the key does not sync: on a new device, choose it again.
 - **Shifts, stores, wages and settings** stay in the plugin's `data.json` in your vault.
 - **Diagnostics** from the test contain the service, address, model and error, but no key and no shift content.
+- **Running programs (the directory's "Shell Execution" note).** The plugin starts exactly two fixed macOS programs and nothing else: `/usr/bin/osascript` to add, update and remove your shift events in Calendar when you sync, and `/usr/bin/security` once, to read a Gemini key that versions before 1.4.0 kept in the Keychain, if you had turned that on. No command is built from text you type or from a note.
+- **Clipboard.** It only writes: **Copy** in the export window copies the schedule text, and the copy button next to **Test** copies the diagnostics. It never reads the clipboard.
 
 ## Reading a roster
 
@@ -106,6 +108,8 @@ npm test      # 28-hour windows, vacations, wages, calendar sync planning, pay n
 - Calendar sync works with the macOS Calendar app only.
 
 ## Changelog
+
+**1.6.0:** no findings left in the community directory's review: typed moment and shell calls, no `!important`, `all` or `:has()` in the styles, the same look. 
 
 **1.5.0:** AI for reading rosters with Chinese and other service presets, a model list and a test that names the problem; progress with Cancel and Retry; a sample week for an empty dashboard; pay figures stay inside their card at any width. Full history in [CHANGELOG.md](CHANGELOG.md).
 
