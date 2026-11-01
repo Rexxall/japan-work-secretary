@@ -50,23 +50,46 @@ test('the peak window finds the heaviest 7 days around today', () => {
 
 test('daytime and evening hours use their own rates', () => {
     const calc = new WageCalculator(settings);
-    assert.deepEqual(calc.calculateShiftWage('2026-10-21', '10:00', '14:00', false, undefined, '测试店'), { totalHours: 4, wageAmount: 4800, breakMissing: false, requiredBreakMinutes: 0 });
+    assert.deepEqual(calc.calculateShiftWage('2026-10-21', '10:00', '14:00', false, undefined, '测试店'), { totalHours: 4, wageAmount: 4800, breakUnconfirmed: false, requiredBreakMinutes: 0, ifBreak: undefined });
     // 16:00-17:00 at 1200, 17:00-20:00 at 1440
-    assert.deepEqual(calc.calculateShiftWage('2026-10-21', '16:00', '20:00', false, undefined, '测试店'), { totalHours: 4, wageAmount: 1200 + 3 * 1440, breakMissing: false, requiredBreakMinutes: 0 });
+    assert.deepEqual(calc.calculateShiftWage('2026-10-21', '16:00', '20:00', false, undefined, '测试店'), { totalHours: 4, wageAmount: 1200 + 3 * 1440, breakUnconfirmed: false, requiredBreakMinutes: 0, ifBreak: undefined });
 });
 
-test('an unentered break is not deducted; the shift counts as scheduled and is flagged', () => {
+test('an unconfirmed break is not deducted; the figures with the break come alongside', () => {
     const calc = new WageCalculator(settings);
+    // Nothing entered: counted as scheduled, and the legal minimum (45 min over 6 h) gives the other figure.
     const missing = calc.calculateShiftWage('2026-10-21', '10:00', '17:00', false, undefined, '测试店');
     assert.equal(missing.totalHours, 7);
-    assert.equal(missing.breakMissing, true);
+    assert.equal(missing.wageAmount, 7 * 1200);
+    assert.equal(missing.breakUnconfirmed, true);
     assert.equal(missing.requiredBreakMinutes, 45);
-    const entered = calc.calculateShiftWage('2026-10-21', '10:00', '17:00', false, 45, '测试店');
-    assert.equal(entered.totalHours, 6.25);
-    assert.equal(entered.breakMissing, false);
+    assert.deepEqual(missing.ifBreak, { breakMinutes: 45, totalHours: 6.25, wageAmount: 7500 });
+    // A planned break that is not confirmed yet: same, with the planned minutes in the other figure.
+    const planned = calc.calculateShiftWage('2026-10-21', '10:00', '17:00', false, 60, '测试店', false);
+    assert.equal(planned.totalHours, 7);
+    assert.deepEqual(planned.ifBreak, { breakMinutes: 60, totalHours: 6, wageAmount: 7200 });
+    // Confirmed: deducted, nothing else to show.
+    const confirmed = calc.calculateShiftWage('2026-10-21', '10:00', '17:00', false, 45, '测试店', true);
+    assert.equal(confirmed.totalHours, 6.25);
+    assert.equal(confirmed.breakUnconfirmed, false);
+    assert.equal(confirmed.ifBreak, undefined);
+    // Confirmed with no minutes: worked straight through.
+    assert.equal(calc.calculateShiftWage('2026-10-21', '10:00', '17:00', false, undefined, '测试店', true).totalHours, 7);
+    // Entered minutes without a status (shifts saved before breaks had one) count as confirmed.
+    assert.equal(calc.calculateShiftWage('2026-10-21', '10:00', '17:00', false, 45, '测试店').totalHours, 6.25);
     assert.equal(calc.calculateShiftWage('2026-10-21', '09:00', '18:30', false, undefined, '测试店').requiredBreakMinutes, 60);
-    // Six hours or less needs no break, so nothing is flagged.
-    assert.equal(calc.calculateShiftWage('2026-10-21', '10:00', '16:00', false, undefined, '测试店').breakMissing, false);
+    // Six hours or less needs no break, so there is no second figure.
+    const short = calc.calculateShiftWage('2026-10-21', '10:00', '16:00', false, undefined, '测试店');
+    assert.equal(short.breakUnconfirmed, false);
+    assert.equal(short.ifBreak, undefined);
+});
+
+test('a 21:00–06:00 shift splits into evening, late night (22:00–05:00) and morning', () => {
+    const calc = new WageCalculator(settings);
+    // Tuesday night, break confirmed as none: 1 h at 1440, 7 h at 1500, 1 h at 1300, and 1 h of overtime premium.
+    const result = calc.calculateShiftWage('2026-10-20', '21:00', '06:00', false, undefined, '测试店', true);
+    assert.equal(result.totalHours, 9);
+    assert.equal(result.wageAmount, 1440 + 7 * 1500 + 1300 + 1200 * 0.25);
 });
 
 test('a break longer than the shift never makes hours negative', () => {

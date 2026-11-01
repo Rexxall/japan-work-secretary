@@ -5,7 +5,7 @@ import { ParsedShiftDraft } from './aiParser';
 import { Shift, normalizeStoreConfigs } from './data';
 import { HoursTracker, parseVacationPeriods } from './hoursTracker';
 import { WageCalculator } from './wageCalculator';
-import { breakMissingText } from './ruleNotes';
+import { breakUnconfirmedText } from './ruleNotes';
 
 interface ReviewRow extends ParsedShiftDraft {
     keep: boolean;
@@ -85,13 +85,14 @@ export class ShiftReviewModal extends Modal {
             const info = item.createDiv({ cls: 'jws-review-info' });
             const wage = calculator.calculateShiftWage(row.date, row.startTime, row.endTime, false, undefined, row.storeName);
             info.createSpan({ cls: 'ap-num', text: `${wage.totalHours.toFixed(2)} h · ¥${Math.round(wage.wageAmount).toLocaleString()}` });
-            if (wage.breakMissing) info.createSpan({ cls: 'ap-pill is-warn', text: tr('No break entered', '未填休息'), attr: { title: breakMissingText(wage.requiredBreakMinutes) } });
+            if (wage.ifBreak) info.createSpan({ cls: 'ap-pill is-warn ap-num', text: tr(`${wage.ifBreak.totalHours.toFixed(2)} h with break`, `扣休息 ${wage.ifBreak.totalHours.toFixed(2)} 小时`), attr: { title: breakUnconfirmedText(wage.ifBreak) } });
             if (isDuplicateShift(this.plugin.shiftData.shifts, row)) info.createSpan({ cls: 'ap-pill', text: tr('Already saved', '已存在') });
             if (row.keep) {
                 if (vacationOver.has(row.date)) info.createSpan({ cls: 'ap-pill is-danger', text: tr('Over 8 h that day', '当天超过 8 小时') });
                 const peak = tracker.checkPeak7DayWindow(withKept, row.date);
                 if (peak.isOverLimit) {
-                    info.createSpan({ cls: 'ap-pill is-danger', text: tr(`${peak.totalHoursLast7Days} h in 7 days${peak.mixesVacation ? ' (term and vacation)' : ''}`, `7 天 ${peak.totalHoursLast7Days} 小时${peak.mixesVacation ? '（学期与长假混合）' : ''}`) });
+                    info.createSpan({ cls: 'ap-pill is-danger', text: tr(`${peak.totalHoursLast7Days} h in 7 days`, `7 天 ${peak.totalHoursLast7Days} 小时`) });
+                    if (peak.mixesVacation) info.createSpan({ cls: 'ap-pill is-warn', text: tr('Needs checking', '需核实'), attr: { title: tr('Term days and the long vacation in one week; every hour counts toward 28 h.', '学期日和长假在同一周，全部工时都算进 28 小时。') } });
                 }
             }
         });
@@ -99,7 +100,7 @@ export class ShiftReviewModal extends Modal {
         if (this.rows.length === 0) list.createDiv({ cls: 'ap-muted', text: tr('No shifts were found.', '没有找到班次。') });
 
         const foot = contentEl.createDiv({ cls: 'ap-modal-foot' });
-        foot.createDiv({ cls: 'ap-foot-note', text: tr('Pay is an estimate before overtime. Breaks are not deducted until you enter them.', '工资是不含加班的估算。填了休息才会扣除。') });
+        foot.createDiv({ cls: 'ap-foot-note', text: tr('Pay is an estimate before overtime. Breaks are deducted once you confirm them on the shift.', '工资是不含加班的估算。在班次里确认休息后才会扣除。') });
         const cancel = foot.createEl('button', { text: tr('Cancel', '取消') });
         cancel.onclick = () => this.close();
         const save = foot.createEl('button', { text: tr(kept.length === 1 ? 'Save 1 shift' : `Save ${kept.length} shifts`, `保存 ${kept.length} 个班次`), cls: 'mod-cta' });

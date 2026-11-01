@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **Break status on every shift: not confirmed or confirmed.** Until you confirm it, the shift counts as scheduled toward the 28 hours, and the hours and pay with the break deducted are shown beside it: your planned break, or the legal minimum (45 min over 6 h, 60 min over 8 h). The add and edit dialogs have the field; shifts read from a roster start unconfirmed. Breaks entered in earlier versions count as confirmed.
+- The 7-day card lists the days whose break is not confirmed and the window's hours if every such break was taken.
+- A window that mixes term days and the long vacation is marked *Needs checking*; all its hours still count toward 28 h until there is an official basis to do otherwise.
+- Pay is summed per minute and divided once, so floating-point error no longer loses a yen at the floor (a 21:00–06:00 shift came out 1 yen short).
+- Editing a shift whose store is no longer in settings, or a sample shift, keeps its store instead of switching to the first one.
+- README: break status, late night as 22:00–05:00 with the Labour Standards Act articles, and the 7-day rule checked again on 2 November 2026.
+
 ## 1.6.0
 
 - **Passes the community directory's review with no findings.** Every call into moment and Node is typed through two small modules (`src/time.ts`, `src/shell.ts`) that fail the build if the real APIs stop matching, and the TypeScript library is set to ES2021 instead of borrowing it from Node's typings. The scanner, which does not install dev dependencies, read 874 of those calls as untyped.

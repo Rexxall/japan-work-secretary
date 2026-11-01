@@ -1,13 +1,13 @@
 import { ItemView, WorkspaceLeaf, Notice, Menu, requestUrl, Modal, App, setIcon } from 'obsidian';
 import { moment, Moment } from './time';
-import { tr } from './i18n';
+import { isZh, tr } from './i18n';
 import JapanWorkSecretaryPlugin, { errorMessage } from './main';
 import { HoursTracker, parseVacationPeriods } from './hoursTracker';
-import { WageCalculator } from './wageCalculator';
+import { WageCalculator, WageResult } from './wageCalculator';
 import { HolidayUtility } from './holidayUtility';
 import { ExchangeRateSnapshot, Shift, ShiftTemplatePattern, buildRecurringInstanceId, getStoreColorClass, getStoreShortName, getStoreWageBand, normalizeStoreConfigs, parseRecurringInstanceId } from './data';
 import { PolicyExplanationModal } from './policyModal';
-import { appendMixedWeekNote, breakMissingText } from './ruleNotes';
+import { appendMixedWeekNote, breakUnconfirmedText } from './ruleNotes';
 
 
 export const DASHBOARD_VIEW_TYPE = 'japan-work-dashboard-view';
@@ -378,7 +378,7 @@ export class DashboardView extends ItemView {
             return m.isSameOrAfter(start, 'day') && m.isSameOrBefore(end, 'day');
         }).map(s => {
             // Re-calculate to match newest logic/settings
-            const res = calculator.calculateShiftWage(s.date, s.startTime, s.endTime, s.isPaidLeave, s.breakMinutes, s.storeName);
+            const res = calculator.calculateShiftWage(s.date, s.startTime, s.endTime, s.isPaidLeave, s.breakMinutes, s.storeName, s.breakConfirmed);
             return {
                 ...s,
                 calculatedHours: res.totalHours,
@@ -676,6 +676,14 @@ export class DashboardView extends ItemView {
         } else if (tracker.isVacationDay(selected)) {
             card.createDiv({ cls: 'ap-notice is-good jws-card-note', text: tr('Long break: up to 8 h per day.', '长假期间：每天最多 8 小时。') });
         }
+        const unconfirmed = this.unconfirmedBreaks(shiftsForCheck, result.peakWindowStart, result.peakWindowEnd);
+        if (unconfirmed.dates.length > 0) {
+            const dates = unconfirmed.dates.map(date => moment(date).format('M/D')).join(isZh() ? '、' : ', ');
+            card.createDiv({
+                cls: 'ap-notice jws-card-note',
+                text: tr(`Breaks not confirmed on ${dates}, so counted as scheduled. With breaks: ${unconfirmed.hoursWithBreaks} h. Right-click a shift to confirm.`, `${dates} 的休息未确认，按排班时长算；都扣休息是 ${unconfirmed.hoursWithBreaks} 小时。右键班次可确认。`)
+            });
+        }
         const vacationOver = tracker.findVacationDaysOverLimit(shiftsForCheck);
         if (vacationOver.length > 0) {
             card.createDiv({
@@ -690,6 +698,20 @@ export class DashboardView extends ItemView {
             hours: result.totalHoursLast7Days,
             isOverLimit: result.isOverLimit
         };
+    }
+
+    /** Days in the window with an unconfirmed break, and the window's hours if every such break was taken. */
+    private unconfirmedBreaks(shifts: Shift[], start: string, end: string): { dates: string[], hoursWithBreaks: number } {
+        const calculator = new WageCalculator(this.plugin.settings);
+        const dates = new Set<string>();
+        let hours = 0;
+        for (const s of shifts) {
+            if (s.isPaidLeave || s.date < start || s.date > end) continue;
+            const res = calculator.calculateShiftWage(s.date, s.startTime, s.endTime, false, s.breakMinutes, s.storeName, s.breakConfirmed);
+            if (res.ifBreak) dates.add(s.date);
+            hours += res.ifBreak?.totalHours ?? res.totalHours;
+        }
+        return { dates: [...dates].sort(), hoursWithBreaks: Math.round(hours * 100) / 100 };
     }
 
     private renderIncomeAnalyticsCard(
@@ -930,7 +952,7 @@ export class DashboardView extends ItemView {
         const endInput = field(timeRow, tr('End', '结束')).createEl('input', { attr: { type: 'time', value: '22:00' } });
         const storeSelect = field(form, tr('Store', '店铺')).createEl('select', { cls: 'dropdown' });
         this.populateStoreSelect(storeSelect);
-        const breakInput = field(form, tr('Break taken (minutes)', '休息（分钟）')).createEl('input', { attr: { type: 'number', min: '0', placeholder: tr('Not entered', '未填') } });
+        const readBreak = breakField(form, { confirmed: false }, () => {});
 
         const btn = form.createEl('button', { cls: 'mod-cta', text: tr('Add to records', '加入记录') });
         btn.onClickEvent(async () => {
@@ -939,7 +961,7 @@ export class DashboardView extends ItemView {
             const start = startInput.value;
             const end = endInput.value;
             const store = storeSelect.value;
-            const customBreak = breakInput.value ? Number(breakInput.value) : undefined;
+            const pause = readBreak();
 
             const hasOverlap = this.plugin.shiftData.shifts.some(s => {
                 if (s.date !== date) return false;
@@ -951,7 +973,7 @@ export class DashboardView extends ItemView {
             }
 
             const calculator = new WageCalculator(this.plugin.settings);
-            const res = calculator.calculateShiftWage(date, start, end, false, customBreak, store);
+            const res = calculator.calculateShiftWage(date, start, end, false, pause.minutes, store, pause.confirmed);
             const newShift: Shift = {
                 id: crypto.randomUUID(),
                 date,
@@ -961,7 +983,8 @@ export class DashboardView extends ItemView {
                 calculatedHours: res.totalHours,
                 calculatedWage: res.wageAmount,
                 isPaidLeave: false,
-                breakMinutes: customBreak
+                breakMinutes: pause.minutes,
+                breakConfirmed: pause.confirmed
             };
             this.plugin.shiftData.shifts.push(newShift);
             await this.plugin.saveDataStore();
@@ -1301,7 +1324,7 @@ export class DashboardView extends ItemView {
                         if (shift) {
                             shift.isPaidLeave = !shift.isPaidLeave;
                             const calculator = new WageCalculator(this.plugin.settings);
-                            const res = calculator.calculateShiftWage(shift.date, shift.startTime, shift.endTime, shift.isPaidLeave, shift.breakMinutes, shift.storeName);
+                            const res = calculator.calculateShiftWage(shift.date, shift.startTime, shift.endTime, shift.isPaidLeave, shift.breakMinutes, shift.storeName, shift.breakConfirmed);
                             shift.calculatedHours = res.totalHours;
                             shift.calculatedWage = res.wageAmount;
                             await this.plugin.saveDataStore();
@@ -1749,6 +1772,30 @@ function field(parent: HTMLElement, label: string): HTMLElement {
     return group;
 }
 
+interface BreakEntry { minutes?: number; confirmed: boolean }
+
+/** Break minutes, and whether they are what was actually taken. Returns a reader for the current entry. */
+function breakField(parent: HTMLElement, initial: BreakEntry, onChange: () => void): () => BreakEntry {
+    const row = field(parent, tr('Break', '休息')).createDiv({ cls: 'jws-break-row' });
+    const input = row.createEl('input', { cls: 'ap-num', attr: { type: 'number', min: '0', step: '5', placeholder: tr('min', '分钟'), 'aria-label': tr('Break in minutes', '休息分钟数') } });
+    if (initial.minutes !== undefined) input.value = String(initial.minutes);
+    let confirmed = initial.confirmed;
+    const seg = row.createDiv({ cls: 'ap-seg' });
+    const buttons = [false, true].map(value => {
+        const button = seg.createEl('button', { text: value ? tr('Confirmed', '已确认') : tr('Not confirmed', '未确认') });
+        button.onClickEvent(() => { confirmed = value; paint(); onChange(); });
+        return button;
+    });
+    const paint = () => buttons.forEach((button, i) => {
+        const on = (i === 1) === confirmed;
+        button.toggleClass('is-active', on);
+        button.setAttr('aria-pressed', String(on));
+    });
+    paint();
+    input.addEventListener('input', onChange);
+    return () => ({ minutes: input.value.trim() === '' ? undefined : Math.max(0, Number(input.value) || 0), confirmed });
+}
+
 class EditShiftModal extends Modal {
     private shift: Shift;
     private plugin: JapanWorkSecretaryPlugin;
@@ -1772,17 +1819,22 @@ class EditShiftModal extends Modal {
         const startInput = field(timeRow, tr('Start', '开始')).createEl('input', { attr: { type: 'time', value: this.shift.startTime } });
         const endInput = field(timeRow, tr('End', '结束')).createEl('input', { attr: { type: 'time', value: this.shift.endTime } });
         const storeSelect = field(form, tr('Store', '店铺')).createEl('select', { cls: 'dropdown' });
-        normalizeStoreConfigs(this.plugin.settings.storeConfigs).forEach(store => {
-            const opt = storeSelect.createEl('option', { text: store.name });
-            opt.value = store.name;
-            if (store.name === this.shift.storeName) opt.selected = true;
+        const storeNames = normalizeStoreConfigs(this.plugin.settings.storeConfigs).map(store => store.name);
+        // A store that is no longer in settings (or the sample store) stays selected instead of falling back to the first one.
+        (storeNames.includes(this.shift.storeName) ? storeNames : [this.shift.storeName, ...storeNames]).forEach(name => {
+            const opt = storeSelect.createEl('option', { text: name });
+            opt.value = name;
+            if (name === this.shift.storeName) opt.selected = true;
         });
+
+        const readBreak = this.shift.isPaidLeave ? null : breakField(form, { minutes: this.shift.breakMinutes, confirmed: this.shift.breakConfirmed ?? this.shift.breakMinutes !== undefined }, () => updatePreview());
 
         const preview = contentEl.createDiv({ cls: 'ap-card is-flat jws-preview' });
         const updatePreview = () => {
             const calculator = new WageCalculator(this.plugin.settings);
-            const res = calculator.calculateShiftWage(dateInput.value, startInput.value, endInput.value, this.shift.isPaidLeave, this.shift.breakMinutes, storeSelect.value);
-            renderWagePreview(preview, res.wageAmount, res.totalHours);
+            const pause = readBreak?.();
+            const res = calculator.calculateShiftWage(dateInput.value, startInput.value, endInput.value, this.shift.isPaidLeave, pause?.minutes, storeSelect.value, pause?.confirmed);
+            renderWagePreview(preview, res);
         };
         updatePreview();
         [dateInput, startInput, endInput].forEach(el => el.oninput = updatePreview);
@@ -1799,9 +1851,14 @@ class EditShiftModal extends Modal {
             this.shift.startTime = startInput.value;
             this.shift.endTime = endInput.value;
             this.shift.storeName = storeSelect.value;
+            const pause = readBreak?.();
+            if (pause) {
+                this.shift.breakMinutes = pause.minutes;
+                this.shift.breakConfirmed = pause.confirmed;
+            }
 
             const calculator = new WageCalculator(this.plugin.settings);
-            const res = calculator.calculateShiftWage(this.shift.date, this.shift.startTime, this.shift.endTime, this.shift.isPaidLeave, this.shift.breakMinutes, this.shift.storeName);
+            const res = calculator.calculateShiftWage(this.shift.date, this.shift.startTime, this.shift.endTime, this.shift.isPaidLeave, this.shift.breakMinutes, this.shift.storeName, this.shift.breakConfirmed);
             this.shift.calculatedHours = res.totalHours;
             this.shift.calculatedWage = res.wageAmount;
 
@@ -1825,7 +1882,9 @@ class EditShiftModal extends Modal {
     }
 }
 
-function renderWagePreview(el: HTMLElement, wage: number, hours: number) {
+function renderWagePreview(el: HTMLElement, res: WageResult) {
+    const wage = res.wageAmount;
+    const hours = res.totalHours;
     el.empty();
     const left = el.createDiv();
     left.createDiv({ cls: 'ap-cap', text: tr('Estimated wage', '预计工资') });
@@ -1833,6 +1892,7 @@ function renderWagePreview(el: HTMLElement, wage: number, hours: number) {
     const right = el.createDiv({ cls: 'jws-preview-right' });
     right.createDiv({ cls: 'ap-cap', text: tr('Hours', '工时') });
     right.createDiv({ cls: 'jws-preview-value ap-num', text: `${hours} h` });
+    if (res.ifBreak) el.createDiv({ cls: 'ap-cap jws-break-unconfirmed', text: breakUnconfirmedText(res.ifBreak) });
 }
 
 class QuickAddShiftModal extends Modal {
@@ -1864,8 +1924,7 @@ class QuickAddShiftModal extends Modal {
             const opt = storeSelect.createEl('option', { text: store.name });
             opt.value = store.name;
         });
-        const breakInput = field(form, tr('Break taken (minutes)', '休息（分钟）')).createEl('input', { attr: { type: 'number', min: '0', placeholder: tr('Not entered', '未填') } });
-        const enteredBreak = () => (breakInput.value.trim() === '' ? undefined : Math.max(0, Number(breakInput.value) || 0));
+        const readBreak = breakField(form, { confirmed: false }, () => updatePreview());
 
         const preview = contentEl.createDiv({ cls: 'ap-card is-flat jws-preview' });
         const check = contentEl.createDiv({ cls: 'ap-notice jws-peak-check' });
@@ -1874,9 +1933,9 @@ class QuickAddShiftModal extends Modal {
         // Show what this shift does to the busiest 7 days before it is saved.
         const updatePreview = () => {
             const calculator = new WageCalculator(this.plugin.settings);
-            const res = calculator.calculateShiftWage(this.date, startInput.value, endInput.value, false, enteredBreak(), storeSelect.value);
-            renderWagePreview(preview, res.wageAmount, res.totalHours);
-            if (res.breakMissing) preview.createDiv({ cls: 'ap-cap jws-break-missing', text: breakMissingText(res.requiredBreakMinutes) });
+            const pause = readBreak();
+            const res = calculator.calculateShiftWage(this.date, startInput.value, endInput.value, false, pause.minutes, storeSelect.value, pause.confirmed);
+            renderWagePreview(preview, res);
 
             if (!this.getShifts) {
                 check.hide();
@@ -1917,7 +1976,7 @@ class QuickAddShiftModal extends Modal {
         cancelBtn.onClickEvent(() => this.close());
         saveBtn = foot.createEl('button', { text: tr('Add shift', '加班次'), cls: 'mod-cta' });
         updatePreview();
-        [startInput, endInput, breakInput].forEach(el => el.oninput = updatePreview);
+        [startInput, endInput].forEach(el => el.oninput = updatePreview);
         storeSelect.onchange = updatePreview;
 
         saveBtn.onClickEvent(async () => {
@@ -1936,10 +1995,12 @@ class QuickAddShiftModal extends Modal {
             }
 
             const calculator = new WageCalculator(this.plugin.settings);
-            const res = calculator.calculateShiftWage(this.date, start, end, false, enteredBreak(), storeSelect.value);
+            const pause = readBreak();
+            const res = calculator.calculateShiftWage(this.date, start, end, false, pause.minutes, storeSelect.value, pause.confirmed);
 
             const newShift = {
-                breakMinutes: enteredBreak(),
+                breakMinutes: pause.minutes,
+                breakConfirmed: pause.confirmed,
                 id: crypto.randomUUID(),
                 date: this.date,
                 startTime: start,

@@ -165,7 +165,9 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
         // including shifts saved by older versions.
         const calculator = new WageCalculator(this.settings);
         for (const shift of this.shiftData.shifts) {
-            const result = calculator.calculateShiftWage(shift.date, shift.startTime, shift.endTime, shift.isPaidLeave || false, shift.breakMinutes, shift.storeName);
+            // Shifts saved before breaks had a status came from a form that asked for the break taken, so an entered break is a confirmed one.
+            shift.breakConfirmed ??= shift.breakMinutes !== undefined;
+            const result = calculator.calculateShiftWage(shift.date, shift.startTime, shift.endTime, shift.isPaidLeave || false, shift.breakMinutes, shift.storeName, shift.breakConfirmed);
             shift.calculatedHours = result.totalHours;
             shift.calculatedWage = result.wageAmount;
         }
@@ -319,9 +321,12 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
 
         const calculator = new WageCalculator(this.settings);
         const processedShifts = rawShifts.map(shift => {
-            const wageResult = calculator.calculateShiftWage(shift.date, shift.startTime, shift.endTime, shift.isPaidLeave || false, shift.breakMinutes, shift.storeName);
+            // A roster gives the planned shift; the break is confirmed later, once it is known.
+            const breakConfirmed = shift.breakConfirmed ?? false;
+            const wageResult = calculator.calculateShiftWage(shift.date, shift.startTime, shift.endTime, shift.isPaidLeave || false, shift.breakMinutes, shift.storeName, breakConfirmed);
             return {
                 ...shift,
+                breakConfirmed,
                 calculatedHours: wageResult.totalHours,
                 calculatedWage: wageResult.wageAmount
             }

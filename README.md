@@ -60,9 +60,10 @@
 
 - **Month and week views,** one colour per store; recurring shifts and weekly templates.
 - **Wage bands with start dates:** when your rate goes up, add a band from that date; earlier shifts keep the old rate.
-- **Breaks you actually took.** Leave the break empty and nothing is deducted: the shift counts as scheduled and is marked *No break entered*. The law says the employer must give 45 minutes over 6 hours and 60 minutes over 8 hours ([MHLW](https://www.mhlw.go.jp/bunya/roudoukijun/faq_kijyunhou_13.html)); that is not proof you had one.
+- **Breaks you actually took.** Each shift's break is *Not confirmed* or *Confirmed*. Until you confirm it, nothing is deducted: the shift counts as scheduled toward the 28 hours, and the hours and pay with the break deducted are shown beside it (your planned break, or the legal minimum). The law says the employer must give 45 minutes over 6 hours and 60 minutes over 8 hours ([Labour Standards Act art. 34](https://laws.e-gov.go.jp/law/322AC0000000049#Mp-Ch_4-At_34)); that is not proof you had one.
+- **Late night is 22:00–05:00** ([art. 37](https://laws.e-gov.go.jp/law/322AC0000000049#Mp-Ch_4-At_37-Pr_4)), counted minute by minute, so a 21:00–06:00 shift splits into evening, late-night and morning rates.
 - **Overtime** over 8 hours a day or 40 a week, the store's Sunday and holiday bonus by calendar day, the statutory rest day premium (off until you name the day), commuting allowance, and a payroll month starting on any day.
-- **28 hours in any 7 days,** with the busiest window marked on the calendar. **Long vacations** from your school's calendar are checked at 8 hours a day; a week mixing term and vacation days is held to 28 hours with all its hours.
+- **28 hours in any 7 days,** with the busiest window marked on the calendar. **Long vacations** from your school's calendar are checked at 8 hours a day; a week mixing term and vacation days is marked *Needs checking* and held to 28 hours with all its hours, because the official page does not say how such a week is counted.
 - **Income alert lines** you set yourself, monthly or yearly. The plugin does not decide tax.
 
 ## Calendar and pay notes
@@ -89,7 +90,7 @@
 
 ## How it works
 
-- **28-hour check:** the Immigration Services Agency's page on work permission for students says "１週について２８時間以内（教育機関の長期休業期間にあっては、１日について８時間以内）" ([source](https://www.moj.go.jp/isa/applications/procedures/nyuukokukanri07_00003.html), checked 29 October 2026). It does not say which day a week starts, so for the selected day the plugin looks at all seven 7-day windows that include it and reports the largest. Paid leave is not counted.
+- **28-hour check:** the Immigration Services Agency's page on work permission for students says "１週について２８時間以内（教育機関の長期休業期間にあっては、１日について８時間以内）" ([source](https://www.moj.go.jp/isa/applications/procedures/nyuukokukanri07_00003.html), checked 2 November 2026). It does not say which day a week starts, so for the selected day the plugin looks at all seven 7-day windows that include it and reports the largest. Paid leave is not counted.
 - **Wage bands:** each store keeps rate tables with an `effectiveFrom` date; a shift uses the newest one that started on or before its date.
 - **Calendar sync:** a shift's fingerprint covers only what appears in the event, so changing a wage does not rewrite your calendar. AppleScript receives values as arguments, so store names with quotes are safe.
 - **AI requests** go through Obsidian's `requestUrl`, with the key in a header, never in the URL.

@@ -7,7 +7,9 @@ export interface Shift {
     calculatedWage: number;
     calculatedHours: number; // Decimal hours
     isPaidLeave?: boolean;
-    breakMinutes?: number; // Custom break override in minutes
+    breakMinutes?: number; // Break in minutes: what was taken once confirmed, otherwise the planned break
+    /** The break minutes are what was actually taken. Unconfirmed shifts count as scheduled toward the 28 hours. */
+    breakConfirmed?: boolean;
     isSynced?: boolean; // Track if synced to calendar
     /** Sample shift loaded from the empty dashboard; never synced or exported, removed together. */
     isSample?: boolean;

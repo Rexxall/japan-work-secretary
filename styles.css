@@ -825,6 +825,9 @@
 :is(.japan-work-dashboard, .jws-modal) .jws-field { display: flex; flex-direction: column; gap: 4px; }
 :is(.japan-work-dashboard, .jws-modal) .jws-field label { font-size: var(--font-ui-smaller); color: var(--ap-label-2); }
 :is(.japan-work-dashboard, .jws-modal) .jws-field :is(input, select) { width: 100%; }
+:is(.japan-work-dashboard, .jws-modal) .jws-break-row { display: flex; align-items: center; gap: var(--ap-s2); }
+:is(.japan-work-dashboard, .jws-modal) .jws-break-row input { flex: 1; min-width: 0; }
+:is(.japan-work-dashboard, .jws-modal) .jws-break-row .ap-seg { flex: none; }
 
 /* Modals */
 .jws-modal { width: min(520px, 92vw); }
@@ -913,7 +916,7 @@
 
 /* A missing break is said in words under the estimate */
 .jws-modal .jws-preview { flex-wrap: wrap; }
-.jws-modal .jws-break-missing { flex-basis: 100%; margin-top: var(--ap-s2); color: var(--ap-warn); }
+.jws-modal .jws-break-unconfirmed { flex-basis: 100%; margin-top: var(--ap-s2); color: var(--ap-warn); }
 
 /* Empty dashboard and sample banner. */
 .japan-work-dashboard .jws-start { text-align: center; padding: 20px; margin-bottom: 12px; }
