@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Releases are built by GitHub Actions from the tag, with a build provenance attestation for `main.js`, `manifest.json` and `styles.css` (`gh attestation verify`). The release stops if the tag, `manifest.json`, `package.json`, the lockfile and `versions.json` disagree.
+- CI runs lint, tests and the build on Node 20 and 22 for every push and pull request.
+
 ## 1.7.0
 
 - **Break status on every shift: not confirmed or confirmed.** Until you confirm it, the shift counts as scheduled toward the 28 hours, and the hours and pay with the break deducted are shown beside it: your planned break, or the legal minimum (45 min over 6 h, 60 min over 8 h). The add and edit dialogs have the field; shifts read from a roster start unconfirmed. Breaks entered in earlier versions count as confirmed.

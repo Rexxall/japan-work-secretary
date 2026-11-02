@@ -94,6 +94,8 @@
 
 **手动：** 从最新版本下载 `main.js`、`manifest.json`、`styles.css`，放进 `<库>/.obsidian/plugins/japan-work-secretary/`，重新加载后启用。
 
+**核验下载：** 从 1.7.1 起，Release 附件由 GitHub Actions 构建并附构建来源认证，可以用 `gh attestation verify main.js --repo Rexxall/japan-work-secretary` 核验。
+
 **从 1.4.x 升级：** Gemini 密钥和设置都会保留，Gemini 变成“AI 读班表”里的一个服务。1.4.0 之前密钥存在 macOS 钥匙串，首次启动会复制进密钥库；所有库都升级后，可以在“钥匙串访问”里删掉服务名为 `obsidian-japan-work-secretary` 的条目。
 
 ## 已知限制

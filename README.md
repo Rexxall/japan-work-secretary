@@ -86,6 +86,8 @@
 
 **Manually:** download `main.js`, `manifest.json` and `styles.css` from the latest release into `<vault>/.obsidian/plugins/japan-work-secretary/`, reload Obsidian and enable the plugin.
 
+**Checking a download:** from 1.7.1 on, GitHub Actions builds the release files and signs where they came from. Check one with `gh attestation verify main.js --repo Rexxall/japan-work-secretary`.
+
 **From 1.4.x:** your Gemini key and settings carry over; Gemini is now one of the services under *AI for reading schedules*. Versions before 1.4.0 kept the key in the macOS Keychain; it is copied into secret storage on first start. Delete the Keychain entry (service `obsidian-japan-work-secretary`) once every vault is upgraded.
 
 ## How it works
