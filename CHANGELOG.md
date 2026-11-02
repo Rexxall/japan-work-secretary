@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.7.0
 
 - **Break status on every shift: not confirmed or confirmed.** Until you confirm it, the shift counts as scheduled toward the 28 hours, and the hours and pay with the break deducted are shown beside it: your planned break, or the legal minimum (45 min over 6 h, 60 min over 8 h). The add and edit dialogs have the field; shifts read from a roster start unconfirmed. Breaks entered in earlier versions count as confirmed.
 - The 7-day card lists the days whose break is not confirmed and the window's hours if every such break was taken.

@@ -110,6 +110,8 @@ npm test      # 28-hour windows, vacations, wages, calendar sync planning, pay n
 
 ## Changelog
 
+**1.7.0:** every shift has a break status; until it is confirmed, hours and pay are shown both with and without the break, and mixed vacation weeks are marked *Needs checking*. 
+
 **1.6.0:** no findings left in the community directory's review: typed moment and shell calls, no `!important`, `all` or `:has()` in the styles, the same look. 
 
 **1.5.0:** AI for reading rosters with Chinese and other service presets, a model list and a test that names the problem; progress with Cancel and Retry; a sample week for an empty dashboard; pay figures stay inside their card at any width. Full history in [CHANGELOG.md](CHANGELOG.md).
