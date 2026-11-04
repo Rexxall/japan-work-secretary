@@ -17,9 +17,6 @@ export interface JapanWorkSecretarySettings {
 	aiModel: string;
 	/** Name of the secret in Obsidian's secret storage that holds the key. */
 	aiSecretName: string;
-	// Gemini key before 1.4.0; migrated into secret storage on load.
-	geminiApiKey: string;
-	useMacKeychainForGeminiApiKey: boolean;
 	calendarName: string;
 	storeConfigs: StoreConfig[];
 	baseWage: number;
@@ -53,8 +50,6 @@ export const DEFAULT_SETTINGS: JapanWorkSecretarySettings = {
 	aiBaseUrl: '',
 	aiModel: '',
 	aiSecretName: '',
-	geminiApiKey: '',
-	useMacKeychainForGeminiApiKey: false,
 	calendarName: 'Work',
 	storeConfigs: cloneDefaultStoreConfigs(),
 	baseWage: 1370,

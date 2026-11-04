@@ -44,8 +44,12 @@
 - **The API key** lives in Obsidian's secret storage on this device. The plugin's settings keep only its name, so the key does not sync: on a new device, choose it again.
 - **Shifts, stores, wages and settings** stay in the plugin's `data.json` in your vault.
 - **Diagnostics** from the test contain the service, address, model and error, but no key and no shift content.
-- **Running programs (the directory's "Shell Execution" note).** The plugin starts exactly two fixed macOS programs and nothing else: `/usr/bin/osascript` to add, update and remove your shift events in Calendar when you sync, and `/usr/bin/security` once, to read a Gemini key that versions before 1.4.0 kept in the Keychain, if you had turned that on. No command is built from text you type or from a note.
-- **Clipboard.** It only writes: **Copy** in the export window copies the schedule text, and the copy button next to **Test** copies the diagnostics. It never reads the clipboard.
+
+### What the plugin touches
+
+- **One program: `/usr/bin/osascript`** (the directory's "Shell Execution" note), only to add, update and remove your shift events in macOS Calendar when you add, edit or delete shifts and when you sync. The AppleScript is fixed in the plugin; shift details are passed to it as arguments, never built into a command. No other program is started.
+- **Clipboard: write only.** **Copy** in the export window copies the schedule text; the copy button next to **Test** copies the diagnostics. It never reads the clipboard.
+- **Network: three kinds of request, nothing else.** The AI service at the address in your settings, only when you read a roster, fetch the model list or click **Test**; `holidays-jp.github.io` for public holidays; `frankfurter.dev`, or `exchangerate-api.com` if that fails, for the exchange rate. No analytics, no server of ours.
 
 ## Reading a roster
 
@@ -88,7 +92,7 @@
 
 **Checking a download:** from 1.7.1 on, GitHub Actions builds the release files and signs where they came from. Check one with `gh attestation verify main.js --repo Rexxall/japan-work-secretary`.
 
-**From 1.4.x:** your Gemini key and settings carry over; Gemini is now one of the services under *AI for reading schedules*. Versions before 1.4.0 kept the key in the macOS Keychain; it is copied into secret storage on first start. Delete the Keychain entry (service `obsidian-japan-work-secretary`) once every vault is upgraded.
+**From 1.4.x:** your Gemini key and settings carry over; Gemini is now one of the services under *AI for reading schedules*. A key kept in the macOS Keychain by versions before 1.4.0 is no longer read: choose or enter it again under *AI for reading schedules*, then delete the Keychain entry (service `obsidian-japan-work-secretary`).
 
 ## How it works
 

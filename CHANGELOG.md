@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.2
+
+- The plugin no longer runs `/usr/bin/security`. The one-time move of a Gemini key that versions before 1.4.0 kept in the macOS Keychain is gone, along with its two settings fields; such a key has to be chosen or entered again. `osascript` for Calendar is now the only program the plugin starts.
+- README (English and Chinese): *What the plugin touches*, covering the one program, the clipboard and every network request.
+- `CONTRIBUTING.md` with the build, test and lint commands and how to report an issue.
+- esbuild 0.25.5 (from 0.17.3); its install script is skipped through `allowScripts`, so a strict npm install no longer stops on it. A patched picomatch, and moment 2.31.0 for the lint plugin's copy of the Obsidian API. The remaining `npm audit` notes are all minimatch inside ESLint and the Obsidian lint plugin, which have no fixed release; none of it is in `main.js`.
+
 ## 1.7.1
 
 - Releases are built by GitHub Actions from the tag, with a build provenance attestation for `main.js`, `manifest.json` and `styles.css` (`gh attestation verify`). The release stops if the tag, `manifest.json`, `package.json`, the lockfile and `versions.json` disagree.

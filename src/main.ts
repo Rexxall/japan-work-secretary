@@ -21,7 +21,6 @@ import {
     planCalendarSync
 } from './calendarSyncPlanner';
 import { HolidayUtility } from './holidayUtility';
-import { SecureSecretStore } from './secureSecretStore';
 import { AiError, AiTarget, presetFor, serviceLabel } from './ai/providers';
 import { TaskProgress } from './ai/progress';
 
@@ -46,9 +45,6 @@ interface CalendarSyncOptions {
     label?: string;
 }
 
-const SHARED_GEMINI_SECRET = 'gemini-api-key';
-const PLUGIN_GEMINI_SECRET = 'japan-work-secretary-gemini-api-key';
-
 const IMAGE_TYPES: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', heic: 'image/heic' };
 
 export function errorMessage(error: unknown): string {
@@ -63,7 +59,6 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
 
 	async onload() {
 		await this.loadDataStore();
-        await this.initializeGeminiApiKey();
         this.refreshHolidayCache().catch(error => {
             console.warn('Failed to refresh Japanese holiday cache.', error);
         });
@@ -138,7 +133,11 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
             this.settings.aiModel = presetFor('gemini').model;
             this.settings.aiSecretName = saved.geminiSecretName;
         }
-        delete (this.settings as { geminiSecretName?: string }).geminiSecretName;
+        // Fields of the Gemini key before 1.4.0, which 1.7.2 no longer moves.
+        const retired = this.settings as { geminiSecretName?: string; geminiApiKey?: string; useMacKeychainForGeminiApiKey?: boolean };
+        delete retired.geminiSecretName;
+        delete retired.geminiApiKey;
+        delete retired.useMacKeychainForGeminiApiKey;
         this.settings.storeConfigs = normalizeStoreConfigs(this.settings.storeConfigs);
         // Read the saved settings, not the merged ones: the defaults already carry a list of alerts,
         // which would hide the on/off switches saved by 1.1.x.
@@ -195,14 +194,10 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
 	}
 
     private getSerializableSettings(): JapanWorkSecretarySettings {
-        const settingsToSave = {
+        return {
             ...this.settings,
             storeConfigs: normalizeStoreConfigs(this.settings.storeConfigs)
         };
-
-        settingsToSave.geminiApiKey = '';
-
-        return settingsToSave;
     }
 
     /** The service, address and model from settings; the key from Obsidian's secret storage. */
@@ -215,34 +210,6 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
             model: this.settings.aiModel || preset.model,
             apiKey: (name && this.app.secretStorage.getSecret(name)) || ''
         };
-    }
-
-    /**
-     * Before 1.4.0 the Gemini key lived in the macOS Keychain or in plugin data. Move it
-     * into secret storage once, under a shared name other plugins can pick too.
-     */
-    private async initializeGeminiApiKey() {
-        if (this.settings.aiSecretName) return;
-        let legacyKey = this.settings.geminiApiKey || '';
-        if (!legacyKey && this.settings.useMacKeychainForGeminiApiKey) {
-            try {
-                legacyKey = await SecureSecretStore.getGeminiApiKey();
-            } catch {
-                legacyKey = '';
-            }
-        }
-        if (!legacyKey) return;
-
-        const storage = this.app.secretStorage;
-        const shared = storage.getSecret(SHARED_GEMINI_SECRET);
-        const name = !shared || shared === legacyKey ? SHARED_GEMINI_SECRET : PLUGIN_GEMINI_SECRET;
-        storage.setSecret(name, legacyKey);
-        const gemini = presetFor('gemini');
-        Object.assign(this.settings, { aiProvider: gemini.id, aiBaseUrl: gemini.baseUrl, aiModel: gemini.model, aiSecretName: name });
-        this.settings.geminiApiKey = '';
-        this.settings.useMacKeychainForGeminiApiKey = false;
-        // The Keychain entry is left in place: other vaults may still read it until they upgrade too.
-        await this.saveSettings();
     }
 
     openSettings() {
