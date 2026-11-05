@@ -117,6 +117,8 @@ npm test      # 28-hour windows, vacations, wages, calendar sync planning, pay n
 
 ## Changelog
 
+**1.8.0:** a *Deadlines* view for Bases with working days left, skipping weekends and Japanese holidays; the holiday list is refreshed after Obsidian has started.
+
 **1.7.0:** every shift has a break status; until it is confirmed, hours and pay are shown both with and without the break, and mixed vacation weeks are marked *Needs checking*. 
 
 **1.6.0:** no findings left in the community directory's review: typed moment and shell calls, no `!important`, `all` or `:has()` in the styles, the same look. 
