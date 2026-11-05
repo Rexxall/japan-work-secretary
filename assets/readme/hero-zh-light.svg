@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400" role="img" aria-labelledby="t d">
+  <title id="t">Japan Work Secretary</title>
+  <desc id="d">每周不超 28 小时。 工资按工资条的算法算。 本周已排 27 小时，上限 28。再加周五 18:00–20:00 一班就是 29 小时，保存前会标出来。</desc>
+  <rect width="1200" height="400" rx="28" fill="#F7F6FB"/>
+  <g id="title-block" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans', sans-serif">
+    <text x="64" y="118" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans', sans-serif" font-size="17" letter-spacing="1" fill="#7A5AF0">OBSIDIAN 插件 · 在日留学生打工</text>
+    <text x="62" y="196" font-size="52" font-weight="700" letter-spacing="-1.5" fill="#1D1B26">Japan Work Secretary</text>
+    <text x="64" y="252" font-size="29" fill="#1D1B26">每周不超 28 小时。</text>
+    <text x="64" y="292" font-size="29" fill="#6B6780">工资按工资条的算法算。</text>
+    <text x="64" y="346" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans', sans-serif" font-size="17" fill="#6B6780">免费 · 数据留在库里</text>
+  </g>
+  <g id="project-proof" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans', sans-serif">
+    <rect x="700" y="48" width="436" height="304" rx="20" fill="#FFFFFF" stroke="#E4E1EE"/>
+    <text x="728" y="92" font-size="18" fill="#6B6780">本周</text>
+    <text x="726" y="136" font-size="40" font-weight="700" letter-spacing="-1" fill="#1D1B26">27 h</text>
+    <text x="814" y="136" font-size="20" fill="#6B6780">/ 28 小时</text>
+    <rect x="902" y="72" width="210" height="34" rx="17" fill="#FCEBEC"/>
+    <text x="1007" y="95" font-size="17" font-weight="600" text-anchor="middle" fill="#C93A40">+ 周五 18–20 → 29 小时</text>
+    <rect x="742" y="218" width="30" height="70" rx="6" fill="#7A5AF0"/><text x="757" y="314" font-size="16" text-anchor="middle" fill="#6B6780">一</text><rect x="794" y="232" width="30" height="56" rx="6" fill="#7A5AF0"/><text x="809" y="314" font-size="16" text-anchor="middle" fill="#6B6780">二</text><text x="861" y="314" font-size="16" text-anchor="middle" fill="#6B6780">三</text><rect x="898" y="218" width="30" height="70" rx="6" fill="#7A5AF0"/><text x="913" y="314" font-size="16" text-anchor="middle" fill="#6B6780">四</text><text x="965" y="314" font-size="16" text-anchor="middle" fill="#6B6780">五</text><rect x="1002" y="190" width="30" height="98" rx="6" fill="#22855A"/><text x="1017" y="314" font-size="16" text-anchor="middle" fill="#6B6780">六</text><rect x="1054" y="204" width="30" height="84" rx="6" fill="#22855A"/><text x="1069" y="314" font-size="16" text-anchor="middle" fill="#6B6780">日</text><rect x="950" y="260" width="30" height="28" rx="6" fill="#FCEBEC" stroke="#C93A40" stroke-width="2" stroke-dasharray="4 3"/>
+
+  </g>
+</svg>

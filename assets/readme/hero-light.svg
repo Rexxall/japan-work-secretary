@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400" role="img" aria-labelledby="t d">
+  <title id="t">Japan Work Secretary</title>
+  <desc id="d">Stay under 28 hours a week. Pay worked out like your payslip. This week has 27 of 28 hours. Adding a Friday shift from 18:00 to 20:00 would make it 29 hours, so it is marked before you save.</desc>
+  <rect width="1200" height="400" rx="28" fill="#F7F6FB"/>
+  <g id="title-block" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans', sans-serif">
+    <text x="64" y="118" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17" letter-spacing="2" fill="#7A5AF0">OBSIDIAN PLUGIN · FOR STUDENTS WORKING IN JAPAN</text>
+    <text x="62" y="196" font-size="52" font-weight="700" letter-spacing="-1.5" fill="#1D1B26">Japan Work Secretary</text>
+    <text x="64" y="252" font-size="29" fill="#1D1B26">Stay under 28 hours a week.</text>
+    <text x="64" y="292" font-size="29" fill="#6B6780">Pay worked out like your payslip.</text>
+    <text x="64" y="346" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17" fill="#6B6780">free · data stays in your vault</text>
+  </g>
+  <g id="project-proof" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans', sans-serif">
+    <rect x="700" y="48" width="436" height="304" rx="20" fill="#FFFFFF" stroke="#E4E1EE"/>
+    <text x="728" y="92" font-size="18" fill="#6B6780">This week</text>
+    <text x="726" y="136" font-size="40" font-weight="700" letter-spacing="-1" fill="#1D1B26">27 h</text>
+    <text x="814" y="136" font-size="20" fill="#6B6780">of 28</text>
+    <rect x="892" y="72" width="220" height="34" rx="17" fill="#FCEBEC"/>
+    <text x="1002" y="95" font-size="17" font-weight="600" text-anchor="middle" fill="#C93A40">+ Fri 18–20 → 29 h</text>
+    <rect x="742" y="218" width="30" height="70" rx="6" fill="#7A5AF0"/><text x="757" y="314" font-size="16" text-anchor="middle" fill="#6B6780">Mon</text><rect x="794" y="232" width="30" height="56" rx="6" fill="#7A5AF0"/><text x="809" y="314" font-size="16" text-anchor="middle" fill="#6B6780">Tue</text><text x="861" y="314" font-size="16" text-anchor="middle" fill="#6B6780">Wed</text><rect x="898" y="218" width="30" height="70" rx="6" fill="#7A5AF0"/><text x="913" y="314" font-size="16" text-anchor="middle" fill="#6B6780">Thu</text><text x="965" y="314" font-size="16" text-anchor="middle" fill="#6B6780">Fri</text><rect x="1002" y="190" width="30" height="98" rx="6" fill="#22855A"/><text x="1017" y="314" font-size="16" text-anchor="middle" fill="#6B6780">Sat</text><rect x="1054" y="204" width="30" height="84" rx="6" fill="#22855A"/><text x="1069" y="314" font-size="16" text-anchor="middle" fill="#6B6780">Sun</text><rect x="950" y="260" width="30" height="28" rx="6" fill="#FCEBEC" stroke="#C93A40" stroke-width="2" stroke-dasharray="4 3"/>
+
+  </g>
+</svg>
