@@ -948,3 +948,6 @@
 .japan-work-bases .jws-bases-section.is-done .ap-row-title { color: var(--ap-label-2); text-decoration: line-through; }
 .japan-work-bases .jws-bases-note { margin-top: var(--ap-s4); padding-inline: var(--ap-s1); font: var(--ap-subhead); color: var(--ap-label-2); }
 .japan-work-bases .jws-bases-row:active { background: var(--ap-fill-strong); }
+/* Red and orange text on their own tint fall short of 4.5:1; deepen them toward the label colour here */
+.japan-work-bases .ap-pill.is-bad, .japan-work-bases .jws-bases-section.is-overdue .ap-section-title { color: color-mix(in srgb, var(--ap-bad) 72%, var(--ap-label)); }
+.japan-work-bases .ap-pill.is-warn { color: color-mix(in srgb, var(--ap-warn) 55%, var(--ap-label)); }
