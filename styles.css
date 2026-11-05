@@ -933,3 +933,17 @@
 .jws-task-notice .jws-task-bar-fill { height: 100%; background: var(--interactive-accent); transition: width 200ms ease; }
 .jws-task-notice .jws-task-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
 @media (prefers-reduced-motion: reduce) { .jws-task-notice .jws-task-bar-fill { transition: none; } }
+
+/* Deadline view in Bases: one grouped list per week, overdue first */
+.japan-work-bases.ap { padding: var(--ap-s3) var(--ap-s4) var(--ap-s5); max-width: 760px; }
+.japan-work-bases .jws-bases-section { margin-block: 0 var(--ap-s5); }
+.japan-work-bases .jws-bases-section .ap-section-title { display: flex; align-items: baseline; gap: 6px; padding-inline: var(--ap-s1); }
+.japan-work-bases .jws-bases-section.is-overdue .ap-section-title { color: var(--ap-bad); }
+.japan-work-bases .jws-bases-count { font: var(--ap-subhead); color: var(--ap-label-3); font-variant-numeric: tabular-nums; }
+.japan-work-bases .jws-bases-row { color: inherit; text-decoration: none; }
+.japan-work-bases .jws-bases-row:hover { background: var(--ap-fill); }
+.japan-work-bases .jws-bases-row:focus-visible { outline: 2px solid var(--ap-accent); outline-offset: -2px; }
+.japan-work-bases .jws-bases-row .ap-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.japan-work-bases .jws-bases-row .ap-pill { font-variant-numeric: tabular-nums; }
+.japan-work-bases .jws-bases-section.is-done .ap-row-title { color: var(--ap-label-2); text-decoration: line-through; }
+.japan-work-bases .jws-bases-note { margin-top: var(--ap-s4); padding-inline: var(--ap-s1); font: var(--ap-subhead); color: var(--ap-label-3); }

@@ -74,6 +74,7 @@
 
 - **Sync to macOS Calendar** from the ⋯ menu: smart sync writes only changed shifts, events carry a hidden marker and are updated in place, and events for deleted shifts are removed.
 - **Export .ics** for Google Calendar, Outlook or a phone.
+- **Deadline view for Bases.** In a base of application notes (entry sheets, interviews, a residence card renewal), switch the view to *Deadlines*: overdue, today, this week, next week and later, each with the working days left, skipping weekends and Japanese public holidays. Pick a checkbox property such as `submitted` to hide what is done. With Bases turned off nothing changes.
 - **Save pay note:** a Markdown note with every shift, totals by store and overtime, to check against your payslip (給与明細).
 
 ## AI for reading schedules

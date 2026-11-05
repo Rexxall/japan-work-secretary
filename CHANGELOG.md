@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Deadline view for Bases.** A base can show its notes by deadline: overdue, today, this week (weeks start on Monday), next week and later, with the working days left after skipping weekends and Japanese public holidays, and the holiday's name when a deadline falls on one. A checkbox property can mark notes done; they are hidden unless *Show done* is on. Registered only where Bases exists and is on; when Bases is turned on later, the view appears within a few seconds.
 - Newer Japanese holidays are fetched after Obsidian has finished starting instead of during it; the saved ones are used meanwhile.
 - `CONTRIBUTING.md`: check startup time before a release.
 

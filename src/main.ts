@@ -1,6 +1,8 @@
 import { Plugin, Notice, Editor, TFile, arrayBufferToBase64, normalizePath, requestUrl } from 'obsidian';
 import { moment } from './time';
 import { tr } from './i18n';
+import { registerBasesViewWhenReady } from './basesSupport';
+import { DEADLINE_VIEW_ID, deadlineViewRegistration } from './deadlineView';
 import { JapanWorkSecretarySettingTab, DEFAULT_SETTINGS, JapanWorkSecretarySettings, migrateIncomeAlerts } from './settings';
 import { JapanWorkSecretaryData, DEFAULT_DATA, RecurringShift, Shift, normalizeStoreConfigs, parseRecurringInstanceId } from './data';
 import { DashboardView, DASHBOARD_VIEW_TYPE } from './dashboardView';
@@ -65,6 +67,8 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
                 console.warn('Failed to refresh Japanese holiday cache.', error);
             });
         });
+
+		registerBasesViewWhenReady(this, DEADLINE_VIEW_ID, () => deadlineViewRegistration(this));
 
 		// Add Settings Tab
 		this.addSettingTab(new JapanWorkSecretarySettingTab(this.app, this));
