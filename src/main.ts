@@ -59,8 +59,11 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
 
 	async onload() {
 		await this.loadDataStore();
-        this.refreshHolidayCache().catch(error => {
-            console.warn('Failed to refresh Japanese holiday cache.', error);
+        // The saved holidays are already in use; fetching newer ones waits until Obsidian has finished starting.
+        this.app.workspace.onLayoutReady(() => {
+            this.refreshHolidayCache().catch(error => {
+                console.warn('Failed to refresh Japanese holiday cache.', error);
+            });
         });
 
 		// Add Settings Tab

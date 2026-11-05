@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Newer Japanese holidays are fetched after Obsidian has finished starting instead of during it; the saved ones are used meanwhile.
+- `CONTRIBUTING.md`: check startup time before a release.
+
 ## 1.7.2
 
 - The plugin no longer runs `/usr/bin/security`. The one-time move of a Gemini key that versions before 1.4.0 kept in the macOS Keychain is gone, along with its two settings fields; such a key has to be chosen or entered again. `osascript` for Calendar is now the only program the plugin starts.

@@ -15,6 +15,8 @@ Node 20 or later. To try a change, copy `main.js`, `manifest.json` and `styles.c
 
 CI runs lint, tests and the build on Node 20 and 22 for every push to `main` and every pull request. Pushing a version tag such as `1.7.2` runs the release workflow: it checks the tag against `manifest.json`, `package.json`, `package-lock.json` and `versions.json`, runs the same steps, attests `main.js`, `manifest.json` and `styles.css`, and creates the release with that version's [CHANGELOG.md](CHANGELOG.md) section as its notes.
 
+Before a release, check startup time: reload Obsidian with the plugin enabled and time its `onload`. It should stay under 50 ms on a vault with a year of data. Anything that reads many files, calls the network or renders waits for `onLayoutReady` or runs on first use.
+
 ## Issues
 
 Open one at [GitHub Issues](https://github.com/Rexxall/japan-work-secretary/issues) with:
