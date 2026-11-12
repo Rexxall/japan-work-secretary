@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Serif numbers** (on by default): this month's hours and wage on the dashboard are set in Didot italic, Georgia where Didot is not installed. Turn it off in settings.
+- Settings groups: the rows' rounded ends are marked at most once per frame, and the watcher stops when the settings tab closes.
+
 ## 1.8.0
 
 - **Deadline view for Bases.** A base can show its notes by deadline: overdue, today, this week (weeks start on Monday), next week and later, with the working days left after skipping weekends and Japanese public holidays, and the holiday's name when a deadline falls on one. A checkbox property can mark notes done; they are hidden unless *Show done* is on. Registered only where Bases exists and is on; when Bases is turned on later, the view appears within a few seconds.

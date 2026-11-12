@@ -459,3 +459,6 @@
 /* Red and orange text on their own tint fall short of 4.5:1; deepen them toward the label colour here */
 .japan-work-bases .ap-pill.is-bad, .japan-work-bases .jws-bases-section.is-overdue .ap-section-title { color: color-mix(in srgb, var(--ap-bad) 72%, var(--ap-label)); }
 .japan-work-bases .ap-pill.is-warn { color: color-mix(in srgb, var(--ap-warn) 55%, var(--ap-label)); }
+
+/* Serif numbers (on by default): this month's hours and wage, a step up because Didot sets smaller. The face comes from styles/ap-signature.css. */
+.japan-work-dashboard.ap-signed .jws-summary-stats .ap-sig-num { font-size: clamp(22px, 11cqi, 32px); line-height: 1.15; }

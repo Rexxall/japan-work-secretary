@@ -2,6 +2,7 @@ import { App, Notice, PluginSettingTab, Setting, SettingDefinitionItem, SettingG
 import { moment } from './time';
 import { AiError, DEFAULT_PROVIDER, ProviderId, TEST_COST_NOTE, describeFailure, listModels, presetFor, presets, testConnection } from './ai/providers';
 import { tr } from './i18n';
+import { watchSettingGroups } from './settingGroups';
 import JapanWorkSecretaryPlugin from './main';
 import { StoreConfig, cloneDefaultStoreConfigs, normalizeStoreConfigs } from './data';
 
@@ -35,6 +36,8 @@ export interface JapanWorkSecretarySettings {
 	exportFolder: string;
 	/** Added to the cssclasses of the pay notes the plugin writes. Empty adds none. */
 	noteCssClass: string;
+	/** This month's hours and wage on the dashboard in Didot italic: the plugin's one signature detail. */
+	serifNumbers: boolean;
 	// Legacy toggles from 1.1.x, migrated into incomeAlerts on load.
 	taxWall88k?: boolean;
 	taxWall103k?: boolean;
@@ -67,6 +70,7 @@ export const DEFAULT_SETTINGS: JapanWorkSecretarySettings = {
 	eventTitlePrefix: '打工',
 	exportFolder: 'Japan Work Secretary',
 	noteCssClass: '',
+	serifNumbers: true,
 	overtimeRate: 1.25,
 	paidLeaveBalance: 10,
 	payrollStartDay: 21,
@@ -103,12 +107,6 @@ const bandLabels = () => [
 
 const KIT_CLS = 'ap ap-settings';
 /** Marks each group's last row so the kit rounds its lower corners where Obsidian lays rows out flat under their headings. */
-function markGroupEnds(el: HTMLElement): void {
-	el.querySelectorAll('.setting-item:not(.setting-item-heading)').forEach(row => {
-		const next = row.nextElementSibling;
-		row.toggleClass('ap-group-end', !!next && (next.matches('.setting-item-heading') || !next.matches('.setting-item')));
-	});
-}
 /** Sub-pages render outside the tab's container, so their groups carry the kit classes themselves. */
 function kitPage<K extends string>(items: SettingDefinitionItem<K>[]): SettingDefinitionItem<K>[] {
 	const out: SettingDefinitionItem<K>[] = [];
@@ -136,10 +134,25 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 		super(app, plugin);
 		this.plugin = plugin;
 		this.containerEl.addClass('jws-settings', 'ap', 'ap-settings');
-		new MutationObserver(() => markGroupEnds(this.containerEl)).observe(this.containerEl, { childList: true, subtree: true });
+		plugin.register(() => this.hide());
+	}
+
+	private stopGroups: (() => void) | null = null;
+
+	/** Marks group edges while the tab is open; started on every display, stopped on hide and unload. */
+	private watchGroups(): void {
+		if (this.stopGroups) return;
+		this.stopGroups = watchSettingGroups(this.containerEl);
+	}
+
+	hide(): void {
+		this.stopGroups?.();
+		this.stopGroups = null;
+		super.hide();
 	}
 
 	getSettingDefinitions(): SettingDefinitionItem[] {
+		this.watchGroups();
 		const settings = this.plugin.settings;
 		settings.storeConfigs = normalizeStoreConfigs(settings.storeConfigs);
 		const money = (key: string, name: string, desc?: string) => ({ name, desc, control: { type: 'number' as const, key, min: 0, step: 1 } });
@@ -164,6 +177,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 			{ name: tr('Event title prefix', '事件标题前缀'), desc: tr('Calendar events are titled "<prefix>: <store>". Existing events are matched by a hidden marker, so changing this only renames them on the next sync.', '日历事件标题为“前缀: 店名”。已有事件靠隐藏标记识别，改前缀只会在下次同步时改名。'), control: { type: 'text', key: 'eventTitlePrefix', placeholder: DEFAULT_SETTINGS.eventTitlePrefix } },
 			{ name: tr('Export folder', '导出文件夹'), desc: tr('Where pay notes and .ics calendar files are saved.', '工资笔记和 .ics 日历文件的保存位置。'), control: { type: 'folder', key: 'exportFolder', placeholder: DEFAULT_SETTINGS.exportFolder } },
 			{ name: tr('Note CSS class', '笔记样式类'), desc: tr("Added to each pay note's cssclasses so a CSS snippet in your vault can style it; the plugin ships no style for it. Leave empty to add none.", '写进每篇工资笔记的 cssclasses，让库里的 CSS 片段给它换样子；插件本身不带这个样式。留空就不加。'), aliases: ['css', 'cssclasses'], control: { type: 'text', key: 'noteCssClass', placeholder: tr('For example pay-note', '例如 pay-note') } },
+			{ name: tr('Serif numbers', '数字用衬线'), desc: tr("This month's hours and wage in Didot italic; Georgia where Didot is not installed.", '本月工时和工资用 Didot 斜体；没装 Didot 的系统用 Georgia。'), aliases: ['font', 'Didot', '字体', '衬线'], control: { type: 'toggle', key: 'serifNumbers' } },
 			{
 				type: 'group',
 				heading: tr('Default wage bands', '默认时薪段'),

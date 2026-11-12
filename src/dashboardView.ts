@@ -432,6 +432,7 @@ export class DashboardView extends ItemView {
 		this.contentEl.empty();
 		this.contentEl.addClass('jws-view-content');
 		const rootEl = this.contentEl.createDiv({ cls: 'japan-work-dashboard ap ap-view' });
+		rootEl.toggleClass('ap-signed', this.plugin.settings.serifNumbers);
 
         const activePeriod = this.getPeriodForDate(this.currentViewDate);
         const calcStart = activePeriod.start;
@@ -517,12 +518,12 @@ export class DashboardView extends ItemView {
             const hoursStat = figures.createDiv({ cls: 'ap-stat' });
             hoursStat.createDiv({ cls: 'ap-stat-label', text: tr('Hours', '工时') });
             const hoursValue = hoursStat.createDiv();
-            hoursValue.createSpan({ cls: 'ap-stat-value', text: String(monthTotalHours) });
+            hoursValue.createSpan({ cls: 'ap-stat-value ap-sig-num', text: String(monthTotalHours) });
             hoursValue.createSpan({ cls: 'ap-stat-unit', text: 'h' });
             hoursStat.createDiv({ cls: 'ap-cap', text: tr(`${currentShifts.length} shift${currentShifts.length === 1 ? '' : 's'}`, `${currentShifts.length} 个班次`) });
             const wageStat = figures.createDiv({ cls: 'ap-stat' });
             wageStat.createDiv({ cls: 'ap-stat-label', text: tr('Estimated wage', '预计工资') });
-            wageStat.createDiv({ cls: 'ap-stat-value', text: `¥${monthlyWage.toLocaleString()}` });
+            wageStat.createDiv({ cls: 'ap-stat-value ap-sig-num', text: `¥${monthlyWage.toLocaleString()}` });
             const rmbRate = this.getRmbExchangeRateForPeriod(calcEnd);
             wageStat.createDiv({
                 cls: 'ap-cap',
