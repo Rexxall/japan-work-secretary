@@ -16,7 +16,7 @@ function sortShifts(shifts: Shift[]): Shift[] {
  * A note to check against the payslip (給与明細): every shift, totals by store, and
  * the period total including overtime, which is worked out across the whole period.
  */
-export function buildPayNote(shifts: Shift[], start: string, end: string, totalWithOvertime: number, now: Date): string {
+export function buildPayNote(shifts: Shift[], start: string, end: string, totalWithOvertime: number, now: Date, cssClasses: string[] = []): string {
     const sorted = sortShifts(shifts);
     const worked = sorted.filter(s => !s.isPaidLeave);
     const hours = worked.reduce((sum, s) => sum + (s.calculatedHours || 0), 0);
@@ -39,6 +39,7 @@ export function buildPayNote(shifts: Shift[], start: string, end: string, totalW
         `hours: ${Math.round(hours * 100) / 100}`,
         `estimated_pay: ${totalWithOvertime}`,
         `updated: ${now.toISOString()}`,
+        ...(cssClasses.length ? [`cssclasses: ${JSON.stringify(cssClasses)}`] : []),
         '---',
         '',
         `# Pay ${start} to ${end}`,

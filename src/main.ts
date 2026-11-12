@@ -9,6 +9,7 @@ import { DashboardView, DASHBOARD_VIEW_TYPE } from './dashboardView';
 import { AIParser, ParsedShiftDraft, draftToShift } from './aiParser';
 import { ShiftReviewModal } from './reviewModal';
 import { buildPayNote, buildShiftsIcs } from './exportShifts';
+import { mergeCssClasses } from './noteClass';
 import { WageCalculator } from './wageCalculator';
 import { CalendarSyncAction, MacCalendarSync } from './macCalendarSync';
 import {
@@ -439,10 +440,18 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
         }).open();
     }
 
+    private exportPath(name: string): string {
+        return normalizePath(`${normalizePath(this.settings.exportFolder || DEFAULT_SETTINGS.exportFolder)}/${name}`);
+    }
+
+    private exportFile(name: string): TFile | null {
+        return this.app.vault.getFileByPath(this.exportPath(name));
+    }
+
     private async writeVaultFile(name: string, content: string): Promise<TFile> {
         const folder = normalizePath(this.settings.exportFolder || DEFAULT_SETTINGS.exportFolder);
         if (!this.app.vault.getFolderByPath(folder)) await this.app.vault.createFolder(folder);
-        const path = normalizePath(`${folder}/${name}`);
+        const path = this.exportPath(name);
         const existing = this.app.vault.getFileByPath(path);
         if (existing) {
             await this.app.vault.process(existing, () => content);
@@ -456,7 +465,12 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
         // Sample shifts are for looking around only.
         const shifts = allShifts.filter(shift => !shift.isSample);
         if (shifts.length !== allShifts.length) total = shifts.reduce((sum, shift) => sum + (shift.calculatedWage || 0), 0);
-        const file = await this.writeVaultFile(`Pay ${start} to ${end}.md`, buildPayNote(shifts, start, end, total, new Date()));
+        const name = `Pay ${start} to ${end}.md`;
+        // The note is rewritten each time; classes the user added to it stay.
+        const previous = this.exportFile(name);
+        const fm = previous ? this.app.metadataCache.getFileCache(previous)?.frontmatter : undefined;
+        const cssClasses = mergeCssClasses(fm?.cssclasses ?? fm?.cssclass, this.settings.noteCssClass);
+        const file = await this.writeVaultFile(name, buildPayNote(shifts, start, end, total, new Date(), cssClasses));
         await this.app.workspace.getLeaf(true).openFile(file);
     }
 

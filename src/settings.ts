@@ -33,6 +33,8 @@ export interface JapanWorkSecretarySettings {
 	vacationPeriods: string[]; // "YYYY-MM-DD~YYYY-MM-DD"
 	eventTitlePrefix: string;
 	exportFolder: string;
+	/** Added to the cssclasses of the pay notes the plugin writes. Empty adds none. */
+	noteCssClass: string;
 	// Legacy toggles from 1.1.x, migrated into incomeAlerts on load.
 	taxWall88k?: boolean;
 	taxWall103k?: boolean;
@@ -64,6 +66,7 @@ export const DEFAULT_SETTINGS: JapanWorkSecretarySettings = {
 	vacationPeriods: [],
 	eventTitlePrefix: '打工',
 	exportFolder: 'Japan Work Secretary',
+	noteCssClass: '',
 	overtimeRate: 1.25,
 	paidLeaveBalance: 10,
 	payrollStartDay: 21,
@@ -160,6 +163,7 @@ export class JapanWorkSecretarySettingTab extends PluginSettingTab {
 			{ name: tr('macOS Calendar name', 'macOS 日历名称'), desc: tr('Target calendar in macOS Calendar. Changing it syncs into the new calendar; existing events in the previous calendar are not removed automatically.', '写入 macOS 日历里的哪个日历。改了以后同步到新日历，旧日历里已有的事件不会自动删除。'), control: { type: 'text', key: 'calendarName', placeholder: DEFAULT_SETTINGS.calendarName } },
 			{ name: tr('Event title prefix', '事件标题前缀'), desc: tr('Calendar events are titled "<prefix>: <store>". Existing events are matched by a hidden marker, so changing this only renames them on the next sync.', '日历事件标题为“前缀: 店名”。已有事件靠隐藏标记识别，改前缀只会在下次同步时改名。'), control: { type: 'text', key: 'eventTitlePrefix', placeholder: DEFAULT_SETTINGS.eventTitlePrefix } },
 			{ name: tr('Export folder', '导出文件夹'), desc: tr('Where pay notes and .ics calendar files are saved.', '工资笔记和 .ics 日历文件的保存位置。'), control: { type: 'folder', key: 'exportFolder', placeholder: DEFAULT_SETTINGS.exportFolder } },
+			{ name: tr('Note CSS class', '笔记样式类'), desc: tr("Added to each pay note's cssclasses so a CSS snippet in your vault can style it; the plugin ships no style for it. Leave empty to add none.", '写进每篇工资笔记的 cssclasses，让库里的 CSS 片段给它换样子；插件本身不带这个样式。留空就不加。'), aliases: ['css', 'cssclasses'], control: { type: 'text', key: 'noteCssClass', placeholder: tr('For example pay-note', '例如 pay-note') } },
 			{
 				type: 'group',
 				heading: tr('Default wage bands', '默认时薪段'),

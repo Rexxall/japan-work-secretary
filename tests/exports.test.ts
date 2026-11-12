@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildPayNote, buildShiftsIcs } from '../src/exportShifts';
+import { mergeCssClasses } from '../src/noteClass';
 import { parseShiftReply } from '../src/aiParser';
 import { Shift } from '../src/data';
 
@@ -47,4 +48,16 @@ test('AI reply: malformed rows are dropped, times padded, stores normalized', ()
     const drafts = parseShiftReply(reply, name => (name === 'A' ? 'Store A' : name));
     assert.deepEqual(drafts, [{ date: '2026-11-03', startTime: '09:00', endTime: '13:30', storeName: 'Store A' }]);
     assert.throws(() => parseShiftReply('{"date":"2026-11-03"}', n => n));
+});
+
+test('pay note carries the note classes, and none by default', () => {
+    assert.match(buildPayNote([], '2026-10-21', '2026-11-20', 0, new Date(), ['wide', 'pay-note']), /\ncssclasses: \["wide","pay-note"\]\n---/);
+    assert.doesNotMatch(buildPayNote([], '2026-10-21', '2026-11-20', 0, new Date()), /cssclasses/);
+});
+
+test('note classes keep the ones a note has, turn the old field into a list, and skip invalid names', () => {
+    assert.deepEqual(mergeCssClasses(['wide'], 'pay-note'), ['wide', 'pay-note']);
+    assert.deepEqual(mergeCssClasses('a b', 'a'), ['a', 'b']);
+    assert.deepEqual(mergeCssClasses(undefined, ''), []);
+    assert.deepEqual(mergeCssClasses(undefined, '1 bad'), []);
 });
