@@ -1,5 +1,7 @@
 <p align="right"><a href="README.zh.md">中文</a> · <a href="#日本語">日本語</a></p>
 
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/icon-dark.svg"><img src="assets/readme/icon-light.svg" width="96" height="96" alt="Japan Work Secretary icon"></picture></p>
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/hero-dark.svg">
   <img src="assets/readme/hero-light.svg" width="100%" alt="Japan Work Secretary: stay under 28 hours a week, with pay worked out like your payslip. This week has 27 of 28 hours; adding a Friday shift from 18:00 to 20:00 would make it 29.">
