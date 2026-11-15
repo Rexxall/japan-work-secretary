@@ -24,7 +24,9 @@ import {
     planCalendarSync
 } from './calendarSyncPlanner';
 import { HolidayUtility } from './holidayUtility';
-import { AiError, AiTarget, presetFor, serviceLabel } from './ai/providers';
+import { AiError, createAiClient, describeAiError } from './ai/kit';
+import { migrateAiSettings, preferReadableKey } from './ai/migrate';
+import type { AiClient } from './vendor/rex-ai-kit/index';
 import { TaskProgress } from './ai/progress';
 
 export interface JapanWorkSecretaryPluginData {
@@ -57,11 +59,15 @@ export function errorMessage(error: unknown): string {
 export default class JapanWorkSecretaryPlugin extends Plugin {
 	settings: JapanWorkSecretarySettings;
     shiftData: JapanWorkSecretaryData;
+    /** Shared AI layer: providers, Keychain keys, model lists. Nothing is requested at load. */
+    ai: AiClient;
     private readonly holidayCacheTtlMs = 7 * 24 * 60 * 60 * 1000;
     private calendarSyncInProgress: boolean = false;
 
 	async onload() {
-		await this.loadDataStore();
+		const migrated = await this.loadDataStore();
+        this.ai = createAiClient(this.app.secretStorage, this.settings.modelCache);
+        if (migrated) await this.saveSettings();
         // The saved holidays are already in use; fetching newer ones waits until Obsidian has finished starting.
         this.app.workspace.onLayoutReady(() => {
             this.refreshHolidayCache().catch(error => {
@@ -129,21 +135,17 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
 
 	}
 
-	async loadDataStore() {
+	/** Returns true when settings from an older version were brought up to date and should be saved. */
+	async loadDataStore(): Promise<boolean> {
         // Load data, handling cases where it might be empty or missing properties
 		const loadedData = (await this.loadData()) as Partial<JapanWorkSecretaryPluginData> | null;
+        const oldAi = !!loadedData?.settings && !('ai' in loadedData.settings);
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData?.settings);
-        // Before 1.5.0 the only service was Gemini, with its key under geminiSecretName.
-        const saved = (loadedData?.settings ?? {}) as Partial<JapanWorkSecretarySettings> & { geminiSecretName?: string };
-        if (saved.geminiSecretName && !saved.aiSecretName) {
-            this.settings.aiProvider = 'gemini';
-            this.settings.aiBaseUrl = presetFor('gemini').baseUrl;
-            this.settings.aiModel = presetFor('gemini').model;
-            this.settings.aiSecretName = saved.geminiSecretName;
-        }
+        // Service, address, model and key name before 1.9.0 become one slot; an old key name is kept while it holds a key.
+        this.settings.ai = migrateAiSettings(this.settings);
+        preferReadableKey(this.settings.ai, this.app.secretStorage);
         // Fields of the Gemini key before 1.4.0, which 1.7.2 no longer moves.
-        const retired = this.settings as { geminiSecretName?: string; geminiApiKey?: string; useMacKeychainForGeminiApiKey?: boolean };
-        delete retired.geminiSecretName;
+        const retired = this.settings as { geminiApiKey?: string; useMacKeychainForGeminiApiKey?: boolean };
         delete retired.geminiApiKey;
         delete retired.useMacKeychainForGeminiApiKey;
         this.settings.storeConfigs = normalizeStoreConfigs(this.settings.storeConfigs);
@@ -178,6 +180,7 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
             shift.calculatedHours = result.totalHours;
             shift.calculatedWage = result.wageAmount;
         }
+        return oldAi;
 	}
 
     /** Re-render open dashboards after a setting changes. */
@@ -188,6 +191,7 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
     }
 
     async saveSettings() {
+        if (this.ai) this.settings.modelCache = this.ai.cache.toJSON();
 		await this.saveData({
             settings: this.getSerializableSettings(),
             data: this.shiftData
@@ -208,16 +212,9 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
         };
     }
 
-    /** The service, address and model from settings; the key from Obsidian's secret storage. */
-    aiTarget(): AiTarget {
-        const preset = presetFor(this.settings.aiProvider);
-        const name = this.settings.aiSecretName;
-        return {
-            provider: preset.id,
-            baseUrl: this.settings.aiBaseUrl || preset.baseUrl,
-            model: this.settings.aiModel || preset.model,
-            apiKey: (name && this.app.secretStorage.getSecret(name)) || ''
-        };
+    /** The name shown while waiting for a reply. */
+    private aiLabel(): string {
+        return this.ai.provider(this.settings.ai).name;
     }
 
     openSettings() {
@@ -228,10 +225,10 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
 
     /** Shows why reading failed, with one next step: settings when nothing is set up, otherwise Retry. */
     private failAi(progress: TaskProgress, error: unknown, retry: () => void) {
-        if (progress.cancelled || (error instanceof AiError && error.kind === 'cancelled')) return;
-        const setup = error instanceof AiError && (error.kind === 'no-key' || error.kind === 'auth');
-        if (setup) progress.fail(errorMessage(error), () => this.openSettings(), tr('Open settings', '打开设置'));
-        else progress.fail(errorMessage(error), retry);
+        if (progress.cancelled || (error instanceof AiError && error.kind === 'aborted')) return;
+        const setup = error instanceof AiError && (error.kind === 'no-key' || error.kind === 'auth' || error.kind === 'model' || error.detail === 'images');
+        if (setup) progress.fail(describeAiError(error), () => this.openSettings(), tr('Open settings', '打开设置'));
+        else progress.fail(describeAiError(error), retry);
     }
 
     async refreshHolidayCache(force: boolean = false) {
@@ -368,11 +365,10 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
     }
 
     async parseShiftSelection(selection: string) {
-        const target = this.aiTarget();
         const progress = new TaskProgress(tr('Reading shifts', '读取班次'), 'jws');
-        progress.step(tr(`Waiting for ${serviceLabel(target)}…`, `等待 ${serviceLabel(target)} 回复…`), 1, 2);
+        progress.step(tr(`Waiting for ${this.aiLabel()}…`, `等待 ${this.aiLabel()} 回复…`), 1, 2);
         try {
-            const drafts = await new AIParser(target, this.settings.storeConfigs).parseText(selection, progress.token);
+            const drafts = await new AIParser(this.ai, this.settings.ai, this.settings.storeConfigs).parseText(selection, progress.signal);
             if (progress.cancelled) return;
             progress.close();
             this.reviewDrafts(drafts, tr('the selected text', '选中的文字'));
@@ -400,9 +396,8 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
             return;
         }
 
-        const target = this.aiTarget();
-        const parser = new AIParser(target, this.settings.storeConfigs);
-        const service = serviceLabel(target);
+        const parser = new AIParser(this.ai, this.settings.ai, this.settings.storeConfigs);
+        const service = this.aiLabel();
         const progress = new TaskProgress(tr('Reading shifts', '读取班次'), 'jws');
         const drafts: ParsedShiftDraft[] = [];
         const failed: string[] = [];
@@ -412,13 +407,13 @@ export default class JapanWorkSecretaryPlugin extends Plugin {
             progress.step(tr(`${image.name}: waiting for ${service}…`, `${image.name}：等待 ${service} 回复…`), index + 1, images.length + 1);
             try {
                 const data = arrayBufferToBase64(await this.app.vault.readBinary(image));
-                drafts.push(...await parser.parseImage(data, IMAGE_TYPES[image.extension.toLowerCase()], progress.token));
+                drafts.push(...await parser.parseImage(data, IMAGE_TYPES[image.extension.toLowerCase()], progress.signal));
             } catch (error) {
                 if (progress.cancelled) return;
                 lastError = error;
                 failed.push(image.name);
                 // Without a key or with a rejected key, the other images would fail the same way.
-                if (error instanceof AiError && (error.kind === 'no-key' || error.kind === 'auth')) break;
+                if (error instanceof AiError && (error.kind === 'no-key' || error.kind === 'auth' || error.kind === 'quota' || error.detail === 'images')) break;
             }
         }
         if (drafts.length === 0 && lastError) {

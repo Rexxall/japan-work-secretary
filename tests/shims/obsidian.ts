@@ -11,3 +11,4 @@ export function requestUrl(request: { url: string; method: string; headers: Reco
     if (!net.handler) throw new Error('No network in tests.');
     return Promise.resolve(net.handler(request));
 }
+export const Platform = { isDesktopApp: false };
