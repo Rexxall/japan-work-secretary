@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased
+## 1.9.0
 
-- **AI service, rebuilt on the shared AI layer.** OpenAI, Anthropic and Gemini come first, then DeepSeek, OpenRouter, Qwen, Kimi, Zhipu, SiliconFlow, Ollama, LM Studio, Claude Code and Codex on this computer, and any OpenAI-compatible server. The key is picked from Obsidian's Keychain under a shared name, **Check** lists the models it can use, and the model menu puts recommended picks first. The default is OpenAI `gpt-6-luna`.
+- **Twelve AI providers built in, one key for every plugin.** OpenAI, Anthropic and Gemini come first, then DeepSeek, OpenRouter, Qwen, Kimi, Zhipu, SiliconFlow, Ollama, LM Studio, Claude Code and Codex on this computer, and any OpenAI-compatible server. The key is picked from Obsidian's Keychain under a shared name, so a key saved once serves every plugin. **Check** lists the models it can use; the model menu puts recommended picks first. The default is OpenAI `gpt-6-luna`.
 - Errors name the service and the next step. Photos sent to Claude Code or Codex, which read text only, are refused before the program runs.
-- The service, model and Keychain name from earlier versions are kept; a setup that never had a key starts on the new default.
+- Your service, model and Keychain name are kept; a setup that never had a key starts on the new default.
+- Provider names follow the interface language.
+- Segmented controls show the chosen segment clearly in dark themes, and themes that ring every button no longer make the other segment look chosen.
 - **Serif numbers** (on by default): this month's hours and wage on the dashboard are set in Didot italic, Georgia where Didot is not installed. Turn it off in settings.
 - Settings groups: the rows' rounded ends are marked at most once per frame, and the watcher stops when the settings tab closes.
 

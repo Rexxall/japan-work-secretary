@@ -171,6 +171,8 @@ npm test      # 28-hour windows, vacations, wages, calendar sync planning, pay n
 
 `styles.css` is generated: edit `styles/plugin.css` and run `npm run styles`.
 
+**1.9.0:** twelve AI providers built in, with the key picked from Obsidian's Keychain and shared by every plugin; **Check** lists the models the key can use.
+
 **1.8.0:** a *Deadlines* view for Bases with working days left, skipping weekends and Japanese holidays; the holiday list is refreshed after Obsidian has started.
 
 **1.7.0:** every shift has a break status; until it is confirmed, hours and pay are shown both with and without the break, and mixed vacation weeks are marked *Needs checking*.
