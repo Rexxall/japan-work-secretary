@@ -9,10 +9,7 @@
 
 <p align="center"><a href="https://community.obsidian.md/plugins/japan-work-secretary"><b>Install from Obsidian</b></a></p>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/demo-dark.gif">
-  <img src="assets/readme/demo-light.gif" width="100%" alt="Adding a Friday evening shift on the dashboard of a 27-hour week: before saving, the dialog marks that the 7 days around it would reach 29 hours, over the 28-hour limit.">
-</picture>
+<img src="assets/readme/demo.webp" width="100%" alt="Adding a Friday evening shift on the dashboard of a 27-hour week: before saving, the dialog marks that the 7 days around it would reach 29 hours, over the 28-hour limit.">
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/cards-dark.svg">

@@ -9,10 +9,7 @@
 
 <p align="center"><a href="https://community.obsidian.md/plugins/japan-work-secretary"><b>Obsidian からインストール</b></a></p>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/demo-dark.gif">
-  <img src="assets/readme/demo-light.gif" width="100%" alt="27 時間のシフトが入った週に金曜夜のシフトを追加します。保存前に、前後の連続 7 日間が 29 時間となり、28 時間を超えることが表示されます。">
-</picture>
+<img src="assets/readme/demo.webp" width="100%" alt="27 時間のシフトが入った週に金曜夜のシフトを追加します。保存前に、前後の連続 7 日間が 29 時間となり、28 時間を超えることが表示されます。">
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/cards-dark.svg">

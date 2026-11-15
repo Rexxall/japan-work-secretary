@@ -9,10 +9,7 @@
 
 <p align="center"><a href="https://community.obsidian.md/plugins/japan-work-secretary"><b>在 Obsidian 里安装</b></a></p>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/demo-dark.gif">
-  <img src="assets/readme/demo-light.gif" width="100%" alt="在已排 27 小时的一周里加周五晚上一班：保存前窗口就标出前后 7 天会到 29 小时，超过 28 小时上限。">
-</picture>
+<img src="assets/readme/demo.webp" width="100%" alt="在已排 27 小时的一周里加周五晚上一班：保存前窗口就标出前后 7 天会到 29 小时，超过 28 小时上限。">
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/cards-zh-dark.svg">
