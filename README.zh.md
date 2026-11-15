@@ -1,6 +1,6 @@
-<p align="right"><a href="README.md">English</a></p>
+<p align="right"><a href="README.md">English</a> · <a href="README.ja.md">日本語</a></p>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/icon-dark.svg"><img src="assets/readme/icon-light.svg" width="96" height="96" alt="Japan Work Secretary icon"></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/icon-dark.svg"><img src="assets/readme/icon-light.svg" width="96" height="96" alt="Japan Work Secretary 图标"></picture></p>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/hero-zh-dark.svg">
@@ -21,13 +21,15 @@
 
 ## 三步上手
 
-1. 在 *设置 → 第三方插件 → 浏览* 里安装并启用 **Japan Work Secretary**，运行命令 **Japan Work Secretary: 打开面板**。
+1. 在 *设置 → 第三方插件 → 浏览* 里安装并启用 **Japan Work Secretary** 后，用命令 **Japan Work Secretary: 打开面板** 打开面板。
 2. 在 **设置 → Japan Work Secretary** 里填好店铺和时薪。
 3. 双击某一天加一个班次。
 
-想先看看？在空面板里点 **载入示例一周**。
+想先看看？在空面板里点 **载入示例一周** 查看示例。
 
-**需要** Obsidian 1.13 或更高，只支持电脑；日历同步用 macOS 日历。**花费** 为零；用 AI 读班表是可选的，用你自己的密钥。
+**需要** Obsidian 1.13 或更高，只支持电脑；日历同步用 macOS 日历。**花费** 插件免费；AI 读班表是可选的，用你自己的密钥，由服务商按用量收费。
+
+遇到问题？[复制一段排查提示词](docs/troubleshooting.zh-CN.md) 给你的 AI 助手。
 
 ## 其余内容
 
@@ -52,7 +54,7 @@
 
 - **月视图和周视图，** 每家店一个颜色；固定班次和每周模板。
 - **时薪按生效日期分段：** 涨时薪时从那天起加一段，之前的班次仍按旧时薪。
-- **按实际休息扣除。** 每个班次的休息分“未确认”和“已确认”。确认前不扣：28 小时按排班时长算，旁边同时显示扣掉休息后的工时和工资（按你填的计划休息，没填就按法定最低）。法律规定 6 小时以上应给 45 分钟、8 小时以上应给 60 分钟（[劳动基准法第 34 条](https://laws.e-gov.go.jp/law/322AC0000000049#Mp-Ch_4-At_34)），但这不代表你真的休了。
+- **按实际休息扣除。** 每个班次的休息分“未确认”和“已确认”。确认前不扣：28 小时按排班时长算，旁边同时显示扣掉休息后的工时和工资（按你填的计划休息，没填就按法定最低）。法律规定超过 6 小时应给 45 分钟、超过 8 小时应给 60 分钟（[劳动基准法第 34 条](https://laws.e-gov.go.jp/law/322AC0000000049#Mp-Ch_4-At_34)），但这不代表你真的休了。
 - **深夜是 22:00–05:00** （[第 37 条](https://laws.e-gov.go.jp/law/322AC0000000049#Mp-Ch_4-At_37-Pr_4)），按分钟算，21:00–06:00 的班会拆成晚间、深夜、早间三种时薪。
 - **加班** （每天超 8 小时或每周超 40 小时）、店铺周日和节假日津贴（按每小时所在日期算）、法定休日割增（指定那一天后才生效）、交通费、从任意一天开始的工资月。
 - **任意连续 7 天 28 小时，** 最忙的那段会在日历上标出。 **学校长假** 按每天 8 小时检查；学期和长假混在一起的一周标“需核实”，因为官方页面没写这种周怎么算，先把全部工时算进 28 小时。
@@ -62,8 +64,8 @@
 
 **日历和工资笔记**
 
-- 在 ⋯ 菜单里**同步到 macOS 日历**：只写有变化的班次，事件带隐藏标记原地更新，删掉的班次对应的事件也会移除。
-- **导出 .ics**，给 Google 日历、Outlook 或手机用。
+- 在 ⋯ 菜单里选 **同步到 macOS 日历** ：只写有变化的班次，事件带隐藏标记原地更新，删掉的班次对应的事件也会移除。
+- **导出 .ics** 后，可给 Google 日历、Outlook 或手机用。
 - **Bases 截止日视图。** 在放申请笔记（ES、面试、在留卡更新）的 base 里，把视图换成“截止日”：按已过期、今天、本周、下周、之后分组，每条显示还剩几个工作日，跳过周末和日本节假日。再选一个勾选框属性（比如 `submitted`），已完成的就会隐藏。没开 Bases 时一切照旧。
 - **保存工资笔记：** 把每个班次、按店合计和加班写成一篇 Markdown，方便对照工资条（給与明細）。
 
@@ -74,10 +76,10 @@
 
 **从这里开始（详细）**
 
-1. 安装并启用 **Japan Work Secretary**，运行命令 **Japan Work Secretary: 打开面板**。
-2. 面板是空的时候，点 **载入示例一周**。会出现五个“示例店”的虚构班次，能看到工时、预计工资和 28 小时检查。示例不会同步到日历，也不会导出；点 **删除示例** 一键删掉。
+1. 安装并启用 **Japan Work Secretary** 后，用命令 **Japan Work Secretary: 打开面板** 打开面板。
+2. 面板是空的时候，点 **载入示例一周** 查看示例。会出现五个“示例店”的虚构班次，能看到工时、预计工资和 28 小时检查。示例不会同步到日历，也不会导出；点 **删除示例** 一键删掉。
 3. 在 **设置 → Japan Work Secretary** 里填好店铺和时薪，然后双击某一天加上真实的班次。
-4. 可选：想从文字或照片读排班，在 **AI 读班表** 里选一个 AI 服务，点 **测试**。
+4. 可选：想从文字或照片读排班，在 **AI 读班表** 里选一个 AI 服务，点 **测试** 检查连接。
 
 </details>
 
@@ -97,7 +99,7 @@
 
 - **预设：** DeepSeek（默认）、通义千问、硅基流动、Kimi、智谱 GLM、Google Gemini、OpenAI，或其他 OpenAI 兼容服务、本地服务。读排班照片要选能识图的模型。
 - **模型列表** 向服务商查询你的密钥能用哪些模型（免费）。
-- **测试连接** 先查模型列表（免费），再发一条只有几个 token 的请求（通常不到一分钱）。
+- **测试连接** 先查模型列表（免费），再发一条只有几个 token 的请求。价格由服务商决定。
 
 </details>
 
@@ -109,14 +111,15 @@
 | Obsidian | 1.13 或更高，只支持电脑 |
 | 日历同步 | macOS 日历。导出 .ics 哪里都能用。 |
 | 插件本身 | 免费，MIT 许可。不用注册，没有我们自己的服务器。 |
-| AI 读班表 | 可不用。用你自己的密钥，按用量付给 AI 服务商。一张排班照片大约几千个 token。其余功能都不需要 AI。 |
+| AI 读班表 | 可不用。用你自己的密钥，按用量付给 AI 服务商。一张排班照片可能用到几千个 token，具体取决于模型和图片大小。其余功能都不需要 AI。 |
 
 | 什么 | 发给谁 | 什么时候 |
 |---|---|---|
 | 选中的文字，或当前笔记里的图片 | 你选的 AI 服务 | 只在运行“从选中的文字读取班次”或“从当前笔记的图片读取班次”时 |
 | 一条“回复 ok”的极短请求 | AI 服务 | 只在点 **测试** 时 |
 | 班次事件 | 本机 macOS 日历（通过 AppleScript） | 同步时 |
-| 不发送，只下载 | `holidays-jp.github.io`（日本节假日）；`exchangerate-api.com` 或 `frankfurter.dev`（工资旁显示的日元兑人民币汇率） | 大约每周一次 |
+| 下载日本节假日 | `holidays-jp.github.io` | 启动后，周缓存到期时更新 |
+| 请求日元兑人民币汇率 | `frankfurter.dev`；实时汇率失败时改用 `exchangerate-api.com` | 打开面板时，每个视图每小时最多一次；到发薪日后，会获取并缓存那天的汇率 |
 
 - **API 密钥** 存在本机 Obsidian 的密钥库里，插件设置里只记名字，所以不会随库同步：换设备后要重新选一次。
 - **班次、店铺、时薪和设置** 都在库里插件的 `data.json` 里。
@@ -124,7 +127,7 @@
 
 #### 插件会碰什么
 
-- **只运行一个程序：`/usr/bin/osascript`**（目录里的“Shell Execution”提示），只在新增、修改、删除班次和同步时，用来在 macOS“日历”里新增、更新、删除对应的事件。AppleScript 写死在插件里，班次信息作为参数传进去，不会拼成命令。不启动其他程序。
+- **只运行一个程序：`osascript`** （目录里的“Shell Execution”提示），只在新增、修改、删除班次和同步时，用来在 macOS“日历”里新增、更新、删除对应的事件。AppleScript 写死在插件里，班次信息作为参数传进去，不会拼成命令。不启动其他程序。
 - **剪贴板：只写不读。** 导出窗口里的 **复制** 会复制排班文字，**测试** 旁边的复制按钮会复制诊断信息。
 - **网络：只有三类请求。** 读排班、获取模型列表、点 **测试** 时，发给你在设置里填的 AI 服务地址；从 `holidays-jp.github.io` 下载日本节假日；从 `frankfurter.dev` 下载汇率，失败时改用 `exchangerate-api.com`。没有统计上报，也没有我们自己的服务器。
 
@@ -133,9 +136,9 @@
 <details>
 <summary><b>手动安装和升级</b></summary>
 
-**在 Obsidian 里（上架后）：** 设置 → 第三方插件 → 浏览，搜索 **Japan Work Secretary**。PKMer 会自动同步官方目录。
+**在 Obsidian 里：** 设置 → 第三方插件 → 浏览，搜索 **Japan Work Secretary** 并启用。[PKMer](https://pkmer.cn/Pkmer-Docs/00-%E5%85%B3%E4%BA%8E/pkmer%E7%A4%BE%E5%8C%BAfaq/) 会自动同步官方目录中已收录的插件。
 
-**手动：** 从最新版本下载 `main.js`、`manifest.json`、`styles.css`，放进 `<库>/.obsidian/plugins/japan-work-secretary/`，重新加载后启用。
+**手动：** 从 [最新版本](https://github.com/Rexxall/japan-work-secretary/releases/latest) 下载 `main.js`、`manifest.json`、`styles.css`，放进 `<库>/.obsidian/plugins/japan-work-secretary/`，重新加载后启用。
 
 **核验下载：** 从 1.7.1 起，Release 附件由 GitHub Actions 构建并附构建来源认证，可以用 `gh attestation verify main.js --repo Rexxall/japan-work-secretary` 核验。
 
@@ -144,15 +147,34 @@
 </details>
 
 <details>
+<summary><b>计算和同步方式</b></summary>
+
+- **28 小时检查：** 出入国在留管理厅的留学生工作许可页面写的是“１週について２８時間以内（教育機関の長期休業期間にあっては、１日について８時間以内）”（[来源](https://www.moj.go.jp/isa/applications/procedures/nyuukokukanri07_00003.html)，原记录核对日期为 2026 年 11 月 2 日）。页面没有指定一周从哪天开始，所以插件检查包含所选日期的全部七个连续 7 天窗口，显示其中最大值。带薪休假不计入。
+- **时薪表：** 每家店的时薪表带有 `effectiveFrom` 生效日期；班次使用在当天或之前生效的最新一张表。
+- **日历同步：** 班次指纹只包含事件里显示的信息，改时薪不会重写日历。AppleScript 通过参数接收数据，店名里的引号也能正常处理。
+- **AI 请求** 通过 Obsidian 的 `requestUrl` 发送，密钥放在请求头里，不放进网址。
+
+</details>
+
+<details>
 <summary><b>已知限制</b></summary>
 
+- Obsidian 设为中文时界面为中文，其他语言设置下为英文。
 - 工时和收入相关的规则仅供参考，请以学校和面板里（ⓘ）链接的官方页面为准。
 - 日历同步只支持 macOS 自带的日历。
 
 </details>
 
 <details>
-<summary><b>更新记录</b></summary>
+<summary><b>开发和更新记录</b></summary>
+
+```bash
+npm install
+npm run build
+npm test      # 连续 7 天、长假、工资、日历同步计划、工资笔记、.ics、AI 回复、迁移
+```
+
+`styles.css` 由脚本生成：修改 `styles/plugin.css` 后运行 `npm run styles`。
 
 **1.8.0：** Bases“截止日”视图，显示还剩几个工作日，跳过周末和日本节假日；节假日在 Obsidian 启动完成后再更新。
 
@@ -164,4 +186,4 @@
 
 </details>
 
-MIT 许可
+问题：[提交问题](https://github.com/Rexxall/japan-work-secretary/issues/new/choose)。构建和维护：[CONTRIBUTING.md](CONTRIBUTING.md)。MIT 许可。

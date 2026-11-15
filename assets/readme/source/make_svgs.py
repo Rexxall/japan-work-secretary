@@ -2,19 +2,20 @@
 
     python3 make_svgs.py <pc|jws|aa> <out dir>
 
-Same frame, palette and type as the Git Note History sample (readme-kit); the right half of the hero
-draws the plugin's own interface with the demo vault's made-up data.
+The Japan Work Secretary palette uses paper, ink and stamp colours.
+The right half of the hero draws the interface with made-up demo data.
 """
 import sys
 from pathlib import Path
 
+# Light accent and warning red are darkened for small text on their soft pads.
 THEMES = {
-    "light": dict(bg="#F7F6FB", fg="#1D1B26", muted="#6B6780", line="#E4E1EE",
-                  card="#FFFFFF", accent="#7A5AF0", accent_soft="#EEE9FF",
-                  red="#C93A40", red_soft="#FCEBEC", green="#22855A", green_soft="#E5F4EC",
+    "light": dict(bg="#F5F2EF", fg="#2E3039", muted="#6A6670", line="#E3DDD8",
+                  card="#FFFFFF", accent="#885847", action="#3E404D", action_text="#FFFFFF", soft="#F1DED3",
+                  red="#C43A40", red_soft="#FCEBEC", green="#22855A", green_soft="#E5F4EC",
                   orange="#B25E09", orange_soft="#FBEEDD"),
-    "dark": dict(bg="#15141B", fg="#EEECF5", muted="#9C98AF", line="#2C2A36",
-                 card="#1E1D26", accent="#A48BFF", accent_soft="#2C2643",
+    "dark": dict(bg="#1A1A1F", fg="#EFEAE6", muted="#A29B98", line="#2E2D33",
+                 card="#222228", accent="#E3C4B2", action="#E3C4B2", action_text="#1A1A1F", soft="#3A2E2A",
                  red="#F07C80", red_soft="#3A1E24", green="#5CC892", green_soft="#16301F",
                  orange="#F2A65A", orange_soft="#3A2A18"),
 }
@@ -68,8 +69,9 @@ def proof_jws(c, zh):
     return f"""
     <rect x="700" y="48" width="436" height="304" rx="20" fill="{c['card']}" stroke="{c['line']}"/>
     <text x="728" y="92" font-size="18" fill="{c['muted']}">{t('This week', '本周')}</text>
-    <text x="726" y="136" font-size="40" font-weight="700" letter-spacing="-1" fill="{c['fg']}">27 h</text>
-    <text x="814" y="136" font-size="20" fill="{c['muted']}">{t('of 28', '/ 28 小时')}</text>
+    <rect x="724" y="108" width="94" height="42" rx="10" fill="{c['action']}"/>
+    <text x="771" y="138" font-size="30" font-weight="700" text-anchor="middle" fill="{c['action_text']}">27 h</text>
+    <text x="830" y="136" font-size="20" fill="{c['muted']}">{t('of 28', '/ 28 小时')}</text>
     <rect x="{902 if zh else 892}" y="72" width="{210 if zh else 220}" height="34" rx="17" fill="{c['red_soft']}"/>
     <text x="{1007 if zh else 1002}" y="95" font-size="17" font-weight="600" text-anchor="middle" fill="{c['red']}">{t('+ Fri 18–20 → 29 h', '+ 周五 18–20 → 29 小时')}</text>
     {''.join(bars)}
@@ -94,11 +96,11 @@ def proof_aa(c, zh):
         out.append(f'<rect x="896" y="{y}" width="216" height="80" rx="14" fill="{c["bg"]}"/>')
         out.append(f'<text x="912" y="{y + 28}" font-size="16" fill="{c["fg"]}">{esc(title)}</text>')
         pill = round(len(cat) * (13 if zh else 7.4) + 22)
-        out.append(f'<rect x="912" y="{y + 42}" width="{pill}" height="24" rx="12" fill="{c["accent_soft"]}"/>')
+        out.append(f'<rect x="912" y="{y + 42}" width="{pill}" height="24" rx="12" fill="{c["soft"]}"/>')
         out.append(f'<text x="{912 + pill / 2}" y="{y + 59}" font-size="13" text-anchor="middle" fill="{c["accent"]}">{esc(cat)}</text>')
         out.append(f'<text x="1098" y="{y + 60}" font-size="18" font-weight="600" text-anchor="end" fill="{c["fg"]}">{amount}</text>')
-    out.append(f'<rect x="896" y="276" width="216" height="44" rx="22" fill="{c["accent"]}"/>')
-    out.append(f'<text x="1004" y="304" font-size="18" font-weight="600" text-anchor="middle" fill="{c["card"]}">{t("Record 2", "确认 2 笔入账")}</text>')
+    out.append(f'<rect x="896" y="276" width="216" height="44" rx="22" fill="{c["action"]}"/>')
+    out.append(f'<text x="1004" y="304" font-size="18" font-weight="600" text-anchor="middle" fill="{c["action_text"]}">{t("Record 2", "确认 2 笔入账")}</text>')
     return "\n    ".join(out)
 
 
@@ -211,7 +213,7 @@ def cards(p, c, zh):
     for i, (title, body, kind) in enumerate(text["cards"]):
         x = 24 + i * 392
         parts.append(f'<rect x="{x}" y="16" width="368" height="158" rx="22" fill="{c["bg"]}" stroke="{c["line"]}"/>')
-        parts.append(f'<rect x="{x+28}" y="44" width="48" height="48" rx="14" fill="{c["accent_soft"]}"/>')
+        parts.append(f'<rect x="{x+28}" y="44" width="48" height="48" rx="14" fill="{c["soft"]}"/>')
         parts.append(glyph(kind, x + 28, 44, c))
         parts.append(f'<text x="{x+96}" y="78" font-size="{27 if not zh else 26}" font-weight="700" fill="{c["fg"]}">{esc(title)}</text>')
         parts.append(f'<text x="{x+28}" y="138" font-size="20" fill="{c["muted"]}">{esc(body)}</text>')
