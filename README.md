@@ -24,7 +24,7 @@
 
 Want to look first? Click **Load a sample week** on the empty dashboard.
 
-**Needs** Obsidian 1.13 or later on desktop; Calendar sync uses macOS Calendar. **Costs** The plugin is free. AI roster reading is optional, uses your own key and is billed by your provider.
+**Needs** Obsidian <!-- DOCS-SYNC:START min -->1.13<!-- DOCS-SYNC:END --> or later on desktop; Calendar sync uses macOS Calendar. **Costs** The plugin is free. AI roster reading is optional, uses your own key and is billed by your provider.
 
 Something not working? [Copy a fix-it prompt](docs/troubleshooting.md) for your AI assistant.
 
