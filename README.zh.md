@@ -7,7 +7,7 @@
   <img src="assets/readme/hero-zh-light.svg" width="100%" alt="Japan Work Secretary（日本打工秘书）：每周不超 28 小时，工资按工资条的算法算。本周已排 27 小时，再加周五 18:00–20:00 一班就是 29 小时。">
 </picture>
 
-<p align="center"><a href="https://community.obsidian.md/plugins/japan-work-secretary"><b>在 Obsidian 里安装</b></a></p>
+<p align="center"><a href="https://community.obsidian.md/plugins/japan-work-secretary"><b>在 Obsidian 里安装</b></a> · <a href="https://rexxall.github.io/#japan-work-secretary">看它怎么用</a></p>
 
 <img src="assets/readme/demo.webp" width="100%" alt="在已排 27 小时的一周里加周五晚上一班：保存前窗口就标出前后 7 天会到 29 小时，超过 28 小时上限。">
 

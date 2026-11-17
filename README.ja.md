@@ -7,7 +7,7 @@
   <img src="assets/readme/hero-light.svg" width="100%" alt="Japan Work Secretary：週 28 時間の上限を確認し、時間帯別に給与を計算します。今週は 27 時間で、金曜 18:00〜20:00 のシフトを加えると 29 時間になります。">
 </picture>
 
-<p align="center"><a href="https://community.obsidian.md/plugins/japan-work-secretary"><b>Obsidian からインストール</b></a></p>
+<p align="center"><a href="https://community.obsidian.md/plugins/japan-work-secretary"><b>Obsidian からインストール</b></a> · <a href="https://rexxall.github.io/#japan-work-secretary">使い方を見る</a></p>
 
 <img src="assets/readme/demo.webp" width="100%" alt="27 時間のシフトが入った週に金曜夜のシフトを追加します。保存前に、前後の連続 7 日間が 29 時間となり、28 時間を超えることが表示されます。">
 

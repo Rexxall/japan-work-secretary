@@ -7,7 +7,7 @@
   <img src="assets/readme/hero-light.svg" width="100%" alt="Japan Work Secretary: stay under 28 hours a week, with pay worked out like your payslip. This week has 27 of 28 hours; adding a Friday shift from 18:00 to 20:00 would make it 29.">
 </picture>
 
-<p align="center"><a href="https://community.obsidian.md/plugins/japan-work-secretary"><b>Install from Obsidian</b></a></p>
+<p align="center"><a href="https://community.obsidian.md/plugins/japan-work-secretary"><b>Install from Obsidian</b></a> · <a href="https://rexxall.github.io/#japan-work-secretary">See how it works</a></p>
 
 <img src="assets/readme/demo.webp" width="100%" alt="Adding a Friday evening shift on the dashboard of a 27-hour week: before saving, the dialog marks that the 7 days around it would reach 29 hours, over the 28-hour limit.">
 
